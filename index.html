@@ -54,9 +54,9 @@
                 <div class="space-y-2">
                     <label class="block text-xs font-black uppercase tracking-wider text-gray-500"><i class="fa-solid fa-layer-group mr-1.5 text-tjblue"></i> Lihat Persebaran Dari:</label>
                     <select id="view-mode" onchange="applyFilters()" class="w-full text-sm px-4 py-3 border-2 border-gray-200 rounded-lg text-gray-800 font-bold focus:border-tjorange focus:ring-0 outline-none cursor-pointer shadow-sm transition">
-                        <option value="E">1. Ketersediaan Bus Stop</option>
-                        <option value="F">2. Ketersediaan Papan Informasi Rute</option>
-                        <option value="G">3. Kondisi Tempat Tunggu Pelanggan</option>
+                        <option value="E">Ketersediaan Bus Stop</option>
+                        <option value="F">Ketersediaan Papan Informasi Rute</option>
+                        <option value="G">Kondisi Tempat Tunggu Pelanggan</option>
                     </select>
                 </div>
 
@@ -107,7 +107,7 @@
         markerCluster = L.markerClusterGroup({
             chunkedLoading: true, 
             maxClusterRadius: 55,
-            disableClusteringAtZoom: 13, // SEKARANG PECAH LEBIH CEPAT TANPA PERLU ZOOM TERLALU DEKAT
+            disableClusteringAtZoom: 14, // SEKARANG PECAH LEBIH CEPAT TANPA PERLU ZOOM TERLALU DEKAT
             iconCreateFunction: function(cluster) {
                 const markers = cluster.getAllChildMarkers();
                 let counts = {};
