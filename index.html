@@ -20,7 +20,6 @@
         html, body { height: 100%; margin: 0; background-color: #f8fafc; font-family: 'PT Sans', sans-serif; }
         #map { height: 100%; width: 100%; z-index: 10; }
         
-        /* Popup Adaptif */
         .custom-popup .leaflet-popup-content-wrapper { padding: 0; overflow: hidden; border-radius: 12px; border: none; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04); }
         .custom-popup .leaflet-popup-content { margin: 0; width: 280px !important; }
         @media (min-width: 768px) { .custom-popup .leaflet-popup-content { width: 340px !important; } }
@@ -30,7 +29,6 @@
         .legend-item { transition: all 0.2s ease-in-out; }
         .legend-item:hover { transform: translateX(5px); }
         
-        /* Kustomisasi Layer Control Leaflet */
         .leaflet-control-layers { border-radius: 8px !important; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1) !important; border: 2px solid #e2e8f0 !important; font-family: 'PT Sans', sans-serif; font-weight: bold; }
     </style>
 </head>
@@ -56,7 +54,7 @@
 
     <div class="flex flex-col md:flex-row flex-1 overflow-hidden relative">
         
-        <aside id="sidebar" class="w-full md:w-[26rem] md:min-w-[20rem] md:max-w-[40rem] md:resize-x h-[55vh] md:h-full bg-white shadow-2xl z-40 flex flex-col border-t md:border-t-0 md:border-r border-gray-200 shrink-0 overflow-hidden order-2 md:order-1 transition-all duration-300">
+        <aside id="sidebar" class="w-full md:w-[26rem] h-[55vh] md:h-full bg-white shadow-2xl z-40 flex flex-col border-t md:border-t-0 md:border-r border-gray-200 shrink-0 relative order-2 md:order-1">
             <div class="p-4 md:p-6 flex-1 overflow-y-auto overflow-x-hidden space-y-5 md:space-y-6">
                 
                 <div class="space-y-3">
@@ -89,10 +87,12 @@
                 </div>
 
             </div>
+            
+            <div id="drag-handle" class="hidden md:block absolute top-0 right-0 w-2 h-full cursor-col-resize bg-transparent hover:bg-blue-100 active:bg-blue-200 z-50 transition-colors"></div>
         </aside>
 
-        <main class="w-full h-[45vh] md:h-full md:flex-1 relative bg-gray-100 order-1 md:order-2 shrink-0 md:shrink z-10">
-            <div id="map"></div>
+        <main class="w-full h-[45vh] md:h-full md:flex-1 relative bg-gray-100 order-1 md:order-2 shrink-0 md:shrink z-10 flex flex-col min-w-[30%]">
+            <div id="map" class="flex-1 w-full h-full"></div>
             
             <div class="hidden md:block absolute top-5 right-5 z-[1000]">
                 <div id="chart-panel-content" class="w-[340px] bg-white/95 backdrop-blur-md rounded-2xl shadow-2xl p-5 border border-gray-100 relative transition-all duration-300">
@@ -124,7 +124,6 @@
 
         Chart.register(ChartDataLabels);
 
-        // KONFIGURASI BASEMAPS
         const cartoLight = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', { attribution: '&copy; CARTO' });
         const googleStreets = L.tileLayer('http://mt0.google.com/vt/lyrs=m&hl=en&x={x}&y={y}&z={z}', { attribution: '&copy; Google Maps' });
         const googleSat = L.tileLayer('http://mt0.google.com/vt/lyrs=s&hl=en&x={x}&y={y}&z={z}', { attribution: '&copy; Google Satellite' });
@@ -133,7 +132,6 @@
         map = L.map('map', { maxZoom: 18, zoomControl: false, layers: [cartoLight] }).setView([-6.2088, 106.8456], 12);
         L.control.zoom({ position: 'bottomright' }).addTo(map);
 
-        // Masukkan Opsi Basemap ke Control Leaflet
         const baseMaps = {
             "Peta Terang (Default)": cartoLight,
             "Google Maps (Jalan)": googleStreets,
@@ -142,7 +140,6 @@
         };
         L.control.layers(baseMaps, null, { position: 'bottomleft' }).addTo(map);
 
-        // LOGIKA KLASTER
         markerCluster = L.markerClusterGroup({
             chunkedLoading: true, 
             maxClusterRadius: 55,
@@ -172,7 +169,34 @@
         });
         map.addLayer(markerCluster);
 
-        // TARIK DATA
+        // FITUR KUSTOM DRAG RESIZE UNTUK SIDEBAR
+        const sidebar = document.getElementById('sidebar');
+        const dragHandle = document.getElementById('drag-handle');
+        let isResizing = false;
+
+        dragHandle.addEventListener('mousedown', (e) => {
+            isResizing = true;
+            document.body.style.cursor = 'col-resize';
+            e.preventDefault(); // Mencegah teks ter-highlight saat di-drag
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            if (!isResizing) return;
+            // Batasi lebar minimal 320px dan maksimal 70% dari layar
+            let newWidth = e.clientX;
+            if (newWidth > 320 && newWidth < window.innerWidth * 0.7) {
+                sidebar.style.width = newWidth + 'px';
+                if(map) map.invalidateSize(); // Peta otomatis menyesuaikan ruang kosong secara real-time
+            }
+        });
+
+        document.addEventListener('mouseup', () => {
+            if (isResizing) {
+                isResizing = false;
+                document.body.style.cursor = 'default';
+            }
+        });
+
         window.addEventListener('DOMContentLoaded', () => {
             fetch(API_URL)
                 .then(res => res.json())
@@ -189,16 +213,15 @@
                 });
         });
 
-        // FUNGSI TOGGLE SIDEBAR & CHART
         function toggleSidebar() {
-            const sidebar = document.getElementById('sidebar');
             if (sidebar.style.display === 'none') {
                 sidebar.style.display = 'flex';
+                // Reset ukuran ke default Tailwind agar rapi
+                sidebar.style.width = ''; 
             } else {
                 sidebar.style.display = 'none';
             }
-            // Paksa peta menyesuaikan ulang sisa layarnya
-            setTimeout(() => { map.invalidateSize(); }, 200);
+            setTimeout(() => { map.invalidateSize(); }, 50);
         }
 
         function toggleChart() {
@@ -326,7 +349,6 @@
                 chartColors.push(stat.hex);
             });
 
-            // Eksekusi Chart HANYA jika layarnya besar (MD/Laptop)
             const canvasWrapper = document.getElementById('chart-panel-content').parentElement;
             if(window.getComputedStyle(canvasWrapper).display !== 'none') {
                 const ctx = document.getElementById('donutChart').getContext('2d');
@@ -347,7 +369,9 @@
                             legend: { display: true, position: 'bottom', labels: { boxWidth: 12, padding: 10, font: { size: 11, family: 'PT Sans', weight: 'bold' }, color: '#4b5563' } },
                             tooltip: { bodyFont: { family: 'PT Sans' }, titleFont: { family: 'PT Sans' }, callbacks: { label: function(context) { return ` ${context.label}: ${context.raw} Titik`; } } },
                             datalabels: {
-                                color: '#ffffff', font: { weight: 'bold', size: 12, family: 'PT Sans' }, textStrokeColor: 'rgba(0,0,0,0.4)', textStrokeWidth: 3,
+                                color: '#ffffff', 
+                                font: { weight: 'bold', size: 12, family: 'PT Sans' }, 
+                                // textStroke dihapus sesuai permintaan agar tidak ada shadow/garis tepi di font persentasenya
                                 formatter: (value, ctx) => {
                                     let sum = 0;
                                     let dataArr = ctx.chart.data.datasets[0].data;
