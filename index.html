@@ -3,412 +3,264 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard WebGIS NBRT & Mikrotrans</title>
+    <title>WebGIS Dashboard NBRT & Mikrotrans</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.css" />
     <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.Default.css" />
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        tjblue: '#002855',
-                        tjorange: '#F2A900',
-                        tjlightblue: '#00A1E4'
-                    }
-                }
-            }
-        }
+        tailwind.config = { theme: { extend: { colors: { tjblue: '#002855', tjorange: '#F2A900' } } } }
     </script>
     <style>
-        html, body { height: 100%; margin: 0; background-color: #f3f4f6; }
+        html, body { height: 100%; margin: 0; background-color: #f8fafc; }
         #map { height: 100%; width: 100%; border-radius: 0.5rem; z-index: 10; }
-        .custom-popup .leaflet-popup-content-wrapper { padding: 0; overflow: hidden; border-radius: 8px; border: 2px solid #002855; }
-        .custom-popup .leaflet-popup-content { margin: 0; width: 300px !important; }
-        /* Scrollbar custom untuk sidebar */
-        ::-webkit-scrollbar { width: 6px; height: 6px; }
-        ::-webkit-scrollbar-track { background: #f1f1f1; }
-        ::-webkit-scrollbar-thumb { background: #002855; border-radius: 3px; }
+        .custom-popup .leaflet-popup-content-wrapper { padding: 0; overflow: hidden; border-radius: 8px; border: none; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); }
+        .custom-popup .leaflet-popup-content { margin: 0; width: 320px !important; }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
     </style>
 </head>
 <body class="flex flex-col h-screen font-sans text-gray-800 overflow-hidden">
 
-    <header class="bg-tjblue text-white shadow-md z-50 flex justify-between items-center px-6 py-3 shrink-0">
+    <header class="bg-tjblue text-white shadow-lg z-50 flex justify-between items-center px-6 py-4 shrink-0">
         <div class="flex items-center space-x-3">
-            <div class="bg-tjorange text-tjblue font-black text-xl px-2 py-1 rounded">TJ</div>
+            <div class="bg-tjorange text-tjblue font-black text-xl px-2.5 py-1 rounded shadow-sm">TJ</div>
             <div>
-                <h1 class="font-bold text-lg leading-tight">Dashboard Monitoring Prasarana</h1>
-                <p class="text-[11px] text-gray-300">WebGIS Interaktif NBRT & Mikrotrans</p>
+                <h1 class="font-bold text-xl leading-tight">Pemetaan Prasarana NBRT & Mikrotrans</h1>
+                <p class="text-xs text-blue-200 font-medium tracking-wide">Pembaruan Visualisasi Berbasis Kondisi</p>
             </div>
         </div>
-        <div class="flex items-center space-x-4">
-            <span id="loading-badge" class="px-3 py-1 text-xs bg-tjorange text-tjblue font-bold rounded animate-pulse">Sinkronisasi Data...</span>
-            
-            <div id="auth-logged-out">
-                <button onclick="toggleModal('login-modal', true)" class="bg-transparent hover:bg-white/10 border border-white text-white font-semibold text-xs py-1.5 px-4 rounded transition">Login Petugas</button>
-            </div>
-            <div id="auth-logged-in" class="hidden flex items-center space-x-3">
-                <div class="text-right">
-                    <p class="text-[10px] text-gray-300">Masuk sebagai:</p>
-                    <p id="user-display" class="text-sm font-bold text-tjorange">@username</p>
-                </div>
-                <button onclick="logout()" class="bg-red-500 hover:bg-red-600 text-white font-medium text-xs py-1.5 px-3 rounded transition shadow">Logout</button>
-            </div>
+        <div id="loading-badge" class="px-4 py-1.5 text-xs bg-tjorange text-tjblue font-bold rounded-full animate-pulse shadow-md">
+            <i class="fa-solid fa-satellite-dish mr-2"></i>Menarik Data...
         </div>
     </header>
 
     <div class="flex flex-1 overflow-hidden">
         
-        <aside class="w-72 bg-white shadow-xl z-40 flex flex-col h-full border-r border-gray-200 shrink-0">
-            <div class="p-4 flex-1 overflow-y-auto space-y-5">
+        <aside class="w-80 bg-white shadow-xl z-40 flex flex-col h-full border-r border-gray-200 shrink-0 relative">
+            <div class="p-5 flex-1 overflow-y-auto space-y-6">
                 
-                <div class="bg-blue-50 border-l-4 border-tjblue p-3 rounded-r">
-                    <h3 class="text-xs font-bold text-tjblue uppercase mb-1">Pencarian</h3>
-                    <input type="text" id="search-input" oninput="applyFilters()" placeholder="Cari Nama Halte / Rute..." class="w-full text-sm px-3 py-2 border rounded shadow-sm focus:ring-2 focus:ring-tjorange focus:outline-none">
+                <div class="bg-gradient-to-br from-tjblue to-blue-900 text-white p-4 rounded-xl shadow-md border-b-4 border-tjorange">
+                    <label class="block text-[11px] font-black uppercase mb-2 tracking-wider opacity-90"><i class="fa-solid fa-layer-group mr-1.5"></i> Lihat Persebaran Dari:</label>
+                    <select id="view-mode" onchange="applyFilters()" class="w-full text-sm px-3 py-2 border-0 rounded text-gray-800 font-bold focus:ring-4 focus:ring-tjorange focus:outline-none cursor-pointer shadow-inner">
+                        <option value="E">Ketersediaan Bus Stop</option>
+                        <option value="F">Ketersediaan Papan Informasi Rute</option>
+                        <option value="G">Kondisi Tempat Tunggu Pelanggan</option>
+                    </select>
                 </div>
 
-                <div class="space-y-3">
-                    <h3 class="text-xs font-bold text-tjblue uppercase border-b pb-1">Filter Parameter</h3>
-                    <div>
-                        <label class="block text-[11px] font-bold text-gray-600 mb-1">KONDISI KOLOM E</label>
-                        <select id="filter-e" onchange="applyFilters()" class="w-full text-sm px-2 py-1.5 border rounded shadow-sm focus:ring-2 focus:ring-tjorange focus:outline-none bg-gray-50"></select>
-                    </div>
-                    <div>
-                        <label class="block text-[11px] font-bold text-gray-600 mb-1">KONDISI KOLOM F</label>
-                        <select id="filter-f" onchange="applyFilters()" class="w-full text-sm px-2 py-1.5 border rounded shadow-sm focus:ring-2 focus:ring-tjorange focus:outline-none bg-gray-50"></select>
-                    </div>
-                    <div>
-                        <label class="block text-[11px] font-bold text-gray-600 mb-1">KONDISI KOLOM G</label>
-                        <select id="filter-g" onchange="applyFilters()" class="w-full text-sm px-2 py-1.5 border rounded shadow-sm focus:ring-2 focus:ring-tjorange focus:outline-none bg-gray-50"></select>
-                    </div>
+                <div>
+                    <h3 class="text-xs font-bold text-gray-500 uppercase mb-2"><i class="fa-solid fa-magnifying-glass mr-1"></i> Pencarian Spesifik</h3>
+                    <input type="text" id="search-input" oninput="applyFilters()" placeholder="Ketik Nama Halte atau Rute..." class="w-full text-sm px-4 py-2.5 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-tjblue focus:border-tjblue outline-none transition">
                 </div>
-                
-                <div class="text-xs text-gray-400 pt-4 text-center border-t border-gray-100">
-                    <p>WebGIS System v1.0</p>
+
+                <div>
+                    <h3 class="text-xs font-bold text-gray-500 uppercase mb-2"><i class="fa-solid fa-list-ul mr-1"></i> Legenda Peta</h3>
+                    <div id="map-legend" class="bg-gray-50 p-3 rounded-lg border border-gray-200 space-y-2">
+                        </div>
                 </div>
+
+                <div class="bg-blue-50 p-4 rounded-lg border border-blue-100 flex items-center justify-between">
+                    <div>
+                        <p class="text-[10px] font-bold text-gray-500 uppercase">Total Titik Tampil</p>
+                        <p id="score-total" class="text-3xl font-black text-tjblue">0</p>
+                    </div>
+                    <i class="fa-solid fa-map-location-dot text-3xl text-blue-200"></i>
+                </div>
+
             </div>
         </aside>
 
-        <main class="flex-1 flex flex-col h-full overflow-hidden bg-gray-100 p-3 space-y-3">
-            
-            <div class="bg-white rounded-lg shadow p-3 shrink-0 flex gap-4 h-48">
-                
-                <div class="bg-tjblue rounded-lg p-4 flex flex-col justify-center items-center text-white w-48 shrink-0 shadow-inner">
-                    <h3 class="text-xs font-semibold text-gray-300 text-center">Total Titik Ditampilkan</h3>
-                    <p id="score-total" class="text-5xl font-black text-tjorange my-2">0</p>
-                    <p class="text-[10px] text-gray-400">Dari <span id="score-all">0</span> total data base</p>
-                </div>
-                
-                <div class="flex-1 flex flex-col items-center justify-center relative">
-                    <h4 class="text-[10px] font-bold text-gray-500 uppercase mb-1">Statistik Kolom E</h4>
-                    <div class="relative w-full h-32 flex justify-center"><canvas id="chartE"></canvas></div>
-                </div>
-                
-                <div class="flex-1 flex flex-col items-center justify-center border-l border-gray-100 relative">
-                    <h4 class="text-[10px] font-bold text-gray-500 uppercase mb-1">Statistik Kolom F</h4>
-                    <div class="relative w-full h-32 flex justify-center"><canvas id="chartF"></canvas></div>
-                </div>
-                
-                <div class="flex-1 flex flex-col items-center justify-center border-l border-gray-100 relative">
-                    <h4 class="text-[10px] font-bold text-gray-500 uppercase mb-1">Statistik Kolom G</h4>
-                    <div class="relative w-full h-32 flex justify-center"><canvas id="chartG"></canvas></div>
-                </div>
-
-            </div>
-
-            <div class="flex-1 bg-white rounded-lg shadow p-1 relative">
-                <div id="map"></div>
-            </div>
+        <main class="flex-1 relative bg-gray-200">
+            <div id="map"></div>
         </main>
-    </div>
-
-    <div id="login-modal" class="hidden fixed inset-0 bg-tjblue bg-opacity-80 z-[9999] flex items-center justify-center p-4 backdrop-blur-sm">
-        <div class="bg-white rounded-xl shadow-2xl p-6 w-full max-w-sm border-t-4 border-tjorange">
-            <h3 class="font-bold text-xl text-tjblue mb-1">Otorisasi Petugas</h3>
-            <p class="text-xs text-gray-500 mb-4">Silakan login berdasarkan divisi Anda.</p>
-            <div class="space-y-3">
-                <div>
-                    <label class="block text-xs font-bold text-gray-600 mb-1">Username</label>
-                    <input type="text" id="login-user" class="w-full px-3 py-2 border rounded bg-gray-50 focus:ring-2 focus:ring-tjorange focus:outline-none">
-                </div>
-                <div>
-                    <label class="block text-xs font-bold text-gray-600 mb-1">Password</label>
-                    <input type="password" id="login-pass" class="w-full px-3 py-2 border rounded bg-gray-50 focus:ring-2 focus:ring-tjorange focus:outline-none">
-                </div>
-                <div class="flex space-x-2 pt-3">
-                    <button onclick="toggleModal('login-modal', false)" class="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 py-2 rounded font-bold text-sm transition">Batal</button>
-                    <button onclick="login()" class="flex-1 bg-tjorange hover:bg-yellow-500 text-tjblue py-2 rounded font-bold text-sm transition shadow-md">Login Sistem</button>
-                </div>
-            </div>
-        </div>
     </div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://unpkg.com/leaflet.markercluster@1.4.1/dist/leaflet.markercluster.js"></script>
 
     <script>
-        // URL API GOOGLE APPS SCRIPT
-        const API_URL = "https://script.google.com/macros/s/AKfycbypsW5gvkxqALd-e98ZybdiLwXoQ8v3YlrS8Kit0XziQ3qRZvS6ZtMbboTLLKGWExNT/exec";
+        // MASUKKAN URL API ANDA DI SINI
+        const API_URL = "https://script.google.com/macros/s/AKfycbx6XcRBW4LoiyRdxBLMLggPb6L_X0ek6d1DyfqiCcJTQSLMikw--S0aJPL60lR73mur/exec";
 
         let map, markerCluster, allData = [];
-        let currentUser = null, currentPass = null, userRole = null;
-        let chartE, chartF, chartG;
-
-        const chartColors = ['#002855', '#F2A900', '#00A1E4', '#8E9FBC', '#4A5568', '#E2E8F0'];
 
         // 1. Inisialisasi Peta
-        map = L.map('map', { maxZoom: 18 }).setView([-6.2088, 106.8456], 11);
+        map = L.map('map', { maxZoom: 18, zoomControl: false }).setView([-6.2088, 106.8456], 12);
+        L.control.zoom({ position: 'bottomright' }).addTo(map);
         L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
             attribution: '&copy; OpenStreetMap'
         }).addTo(map);
 
         markerCluster = L.markerClusterGroup({
             chunkedLoading: true, 
-            maxClusterRadius: 40,
+            maxClusterRadius: 45,
             iconCreateFunction: function(cluster) {
-                return L.divIcon({ html: `<div class="bg-tjblue text-white font-bold rounded-full w-8 h-8 flex items-center justify-center border-2 border-tjorange shadow-lg">${cluster.getChildCount()}</div>`, className: '', iconSize: L.point(32, 32) });
+                return L.divIcon({ 
+                    html: `<div class="bg-white text-tjblue font-black rounded-full w-10 h-10 flex items-center justify-center border-4 border-tjorange shadow-xl text-sm">${cluster.getChildCount()}</div>`, 
+                    className: '', 
+                    iconSize: L.point(40, 40) 
+                });
             }
         });
         map.addLayer(markerCluster);
 
-        // 2. Inisialisasi Chart.js
-        function initCharts() {
-            const commonOptions = {
-                responsive: true, maintainAspectRatio: false,
-                plugins: { legend: { position: 'right', labels: { boxWidth: 10, font: { size: 9 } } } },
-                cutout: '65%'
-            };
-            
-            const ctxE = document.getElementById('chartE').getContext('2d');
-            chartE = new Chart(ctxE, { type: 'doughnut', data: { labels: [], datasets: [{ data: [], backgroundColor: chartColors }] }, options: commonOptions });
-
-            const ctxF = document.getElementById('chartF').getContext('2d');
-            chartF = new Chart(ctxF, { type: 'doughnut', data: { labels: [], datasets: [{ data: [], backgroundColor: chartColors }] }, options: commonOptions });
-
-            const ctxG = document.getElementById('chartG').getContext('2d');
-            chartG = new Chart(ctxG, { type: 'doughnut', data: { labels: [], datasets: [{ data: [], backgroundColor: chartColors }] }, options: commonOptions });
-        }
-
-        // 3. Load Data Pertama Kali
-        window.addEventListener('DOMContentLoaded', () => {
-            checkLocalAuth();
-            initCharts();
-            fetchData();
-        });
+        // 2. Load Data
+        window.addEventListener('DOMContentLoaded', () => fetchData());
 
         function fetchData() {
-            document.getElementById('loading-badge').classList.remove('hidden');
             fetch(API_URL)
                 .then(res => res.json())
                 .then(data => {
                     if(data.error) { alert(data.error); return; }
                     allData = data;
-                    document.getElementById('score-all').innerText = allData.length;
-                    populateDropdownOptions();
-                    applyFilters();
                     document.getElementById('loading-badge').classList.add('hidden');
+                    applyFilters();
                 })
                 .catch(err => {
-                    console.error("Fetch Error:", err);
-                    alert("Gagal memuat API Google Sheets. Pastikan URL Apps Script benar dan izin akses Siapa Saja.");
+                    alert("Koneksi ke database gagal. Pastikan link API benar.");
                     document.getElementById('loading-badge').classList.add('hidden');
                 });
         }
 
-        function populateDropdownOptions() {
-            const setE = new Set(), setF = new Set(), setG = new Set();
-            allData.forEach(item => {
-                if(item.kondisiE) setE.add(item.kondisiE);
-                if(item.kondisiF) setF.add(item.kondisiF);
-                if(item.kondisiG) setG.add(item.kondisiG);
-            });
-            fillSelect('filter-e', setE); fillSelect('filter-f', setF); fillSelect('filter-g', setG);
+        // 3. Logika Simbologi Tingkat Tinggi (Merah, Oranye, Kuning, Hijau)
+        function getSymbology(text) {
+            text = (text || "").toLowerCase();
+            
+            // Kategori MERAH (Sangat Buruk / Tidak Ada)
+            if (text.includes("tidak ada") || text.includes("hilang") || text.includes("sangat buruk")) {
+                return { color: "bg-red-500", icon: "fa-exclamation", border: "border-red-700", textCol: "text-white" };
+            }
+            // Kategori ORANYE (Terhalang / Buruk / Pecah)
+            if (text.includes("terhalang") || text.includes("buruk") || text.includes("pecah") || text.includes("coretan")) {
+                return { color: "bg-orange-500", icon: "fa-ban", border: "border-orange-700", textCol: "text-white" };
+            }
+            // Kategori KUNING (Rusak / Kurang / Pudar / Kusam)
+            if (text.includes("rusak") || text.includes("kurang") || text.includes("pudar") || text.includes("kusam")) {
+                return { color: "bg-yellow-400", icon: "fa-triangle-exclamation", border: "border-yellow-600", textCol: "text-gray-900" };
+            }
+            // Kategori HIJAU (Baik / Jelas / Ada)
+            if (text.includes("baik") || text.includes("ada") || text.includes("jelas")) {
+                return { color: "bg-green-500", icon: "fa-check", border: "border-green-700", textCol: "text-white" };
+            }
+            
+            // Default Abu-abu untuk data tidak terdefinisi
+            return { color: "bg-gray-400", icon: "fa-circle-info", border: "border-gray-500", textCol: "text-white" };
         }
 
-        function fillSelect(id, set) {
-            const select = document.getElementById(id);
-            select.innerHTML = '<option value="">-- Semua Kondisi --</option>';
-            Array.from(set).sort().forEach(val => select.innerHTML += `<option value="${val}">${val}</option>`);
+        // 4. Update Legenda Otomatis
+        function updateLegend(mode) {
+            const legendDiv = document.getElementById('map-legend');
+            let html = '';
+            
+            if(mode === 'E') {
+                html = `
+                    <div class="flex items-center text-xs"><div class="w-5 h-5 rounded-full bg-green-500 border border-green-700 text-white flex justify-center items-center mr-2"><i class="fa-solid fa-check text-[10px]"></i></div> Ketersediaan: Ada / Baik</div>
+                    <div class="flex items-center text-xs"><div class="w-5 h-5 rounded-full bg-yellow-400 border border-yellow-600 text-gray-800 flex justify-center items-center mr-2"><i class="fa-solid fa-triangle-exclamation text-[10px]"></i></div> Kondisi Rusak</div>
+                    <div class="flex items-center text-xs"><div class="w-5 h-5 rounded-full bg-orange-500 border border-orange-700 text-white flex justify-center items-center mr-2"><i class="fa-solid fa-ban text-[10px]"></i></div> Ada, Terhalang</div>
+                    <div class="flex items-center text-xs"><div class="w-5 h-5 rounded-full bg-red-500 border border-red-700 text-white flex justify-center items-center mr-2"><i class="fa-solid fa-exclamation text-[10px]"></i></div> Tidak Ada Bus Stop</div>
+                `;
+            } else {
+                html = `
+                    <div class="flex items-center text-xs"><div class="w-5 h-5 rounded-full bg-green-500 border border-green-700 text-white flex justify-center items-center mr-2"><i class="fa-solid fa-check text-[10px]"></i></div> Kondisi Baik / Jelas / Ada</div>
+                    <div class="flex items-center text-xs"><div class="w-5 h-5 rounded-full bg-yellow-400 border border-yellow-600 text-gray-800 flex justify-center items-center mr-2"><i class="fa-solid fa-triangle-exclamation text-[10px]"></i></div> Kurang / Pudar / Kusam</div>
+                    <div class="flex items-center text-xs"><div class="w-5 h-5 rounded-full bg-orange-500 border border-orange-700 text-white flex justify-center items-center mr-2"><i class="fa-solid fa-ban text-[10px]"></i></div> Buruk / Pecah / Coretan</div>
+                    <div class="flex items-center text-xs"><div class="w-5 h-5 rounded-full bg-red-500 border border-red-700 text-white flex justify-center items-center mr-2"><i class="fa-solid fa-exclamation text-[10px]"></i></div> Tidak Ada / Hilang</div>
+                `;
+            }
+            legendDiv.innerHTML = html;
         }
 
-        // 4. Filter & Render Map + Update Dashboard
+        // 5. Render Peta & Terapkan Filter
         function applyFilters() {
             const searchVal = document.getElementById('search-input').value.toLowerCase();
-            const fE = document.getElementById('filter-e').value;
-            const fF = document.getElementById('filter-f').value;
-            const fG = document.getElementById('filter-g').value;
+            const viewMode = document.getElementById('view-mode').value;
 
+            updateLegend(viewMode);
             markerCluster.clearLayers();
-            let filteredData = [];
+            let count = 0;
 
             allData.forEach(item => {
                 const matchS = !searchVal || item.nama.toLowerCase().includes(searchVal) || item.rute.toLowerCase().includes(searchVal);
-                const matchE = !fE || item.kondisiE === fE;
-                const matchF = !fF || item.kondisiF === fF;
-                const matchG = !fG || item.kondisiG === fG;
 
-                if (matchS && matchE && matchF && matchG) {
-                    filteredData.push(item);
-                    const markerIcon = L.divIcon({ html: `<div class="w-4 h-4 bg-tjorange border-2 border-tjblue rounded-full shadow-md"></div>`, className: '' });
+                if (matchS) {
+                    count++;
+                    
+                    // Ambil teks untuk divisualisasikan sesuai opsi dropdown
+                    let valToEvaluate = item.kondisiE;
+                    if(viewMode === 'F') valToEvaluate = item.kondisiF;
+                    if(viewMode === 'G') valToEvaluate = item.kondisiG;
+
+                    const sym = getSymbology(valToEvaluate);
+                    
+                    // Konstruksi Marker Pintar HTML
+                    const htmlIcon = `<div class="w-8 h-8 rounded-full ${sym.color} ${sym.textCol} border-[3px] ${sym.border} flex items-center justify-center shadow-lg transition-transform hover:scale-110"><i class="fa-solid ${sym.icon} text-sm"></i></div>`;
+                    
+                    const markerIcon = L.divIcon({ html: htmlIcon, className: '', iconSize: L.point(32,32), iconAnchor: [16,16] });
                     const marker = L.marker([item.lat, item.lng], { icon: markerIcon });
                     
-                    marker.bindPopup(() => createPopupContent(item), { className: 'custom-popup' });
+                    marker.bindPopup(() => createPopupContent(item, sym, viewMode), { className: 'custom-popup' });
                     markerCluster.addLayer(marker);
                 }
             });
 
-            document.getElementById('score-total').innerText = filteredData.length;
-            updateCharts(filteredData);
+            document.getElementById('score-total').innerText = count;
         }
 
-        function updateCharts(data) {
-            const countE = {}, countF = {}, countG = {};
-            data.forEach(d => {
-                countE[d.kondisiE || 'Tidak Ada Data'] = (countE[d.kondisiE || 'Tidak Ada Data'] || 0) + 1;
-                countF[d.kondisiF || 'Tidak Ada Data'] = (countF[d.kondisiF || 'Tidak Ada Data'] || 0) + 1;
-                countG[d.kondisiG || 'Tidak Ada Data'] = (countG[d.kondisiG || 'Tidak Ada Data'] || 0) + 1;
-            });
-
-            chartE.data.labels = Object.keys(countE); chartE.data.datasets[0].data = Object.values(countE); chartE.update();
-            chartF.data.labels = Object.keys(countF); chartF.data.datasets[0].data = Object.values(countF); chartF.update();
-            chartG.data.labels = Object.keys(countG); chartG.data.datasets[0].data = Object.values(countG); chartG.update();
-        }
-
-        // 5. Smart Popup Berdasarkan Role
-        function createPopupContent(item) {
-            let html = `
-                <div class="bg-tjblue text-white px-3 py-2 border-b-2 border-tjorange flex justify-between items-start">
-                    <div>
-                        <h4 class="font-bold text-sm uppercase leading-tight">${item.nama}</h4>
-                        <span class="bg-tjorange text-tjblue text-[9px] px-1.5 py-0.5 rounded font-black">RUTE: ${item.rute || '-'}</span>
-                    </div>
-                    <span class="text-[9px] text-gray-300">ID: ${item.rowId}</span>
-                </div>
-                
-                <div class="p-3 text-xs text-gray-700 bg-gray-50 space-y-2">
-                    <table class="w-full text-left">
-                        <tr class="border-b"><td class="text-gray-500 py-1 w-1/3">Kondisi E</td><td class="font-bold">${item.kondisiE || '-'}</td></tr>
-                        <tr class="border-b"><td class="text-gray-500 py-1">Kondisi F</td><td class="font-bold">${item.kondisiF || '-'}</td></tr>
-                        <tr class="border-b"><td class="text-gray-500 py-1">Kondisi G</td><td class="font-bold">${item.kondisiG || '-'}</td></tr>
-                        <tr><td class="text-gray-500 py-1 align-top">Keterangan</td><td class="italic">${item.keterangan || '-'}</td></tr>
-                    </table>
-            `;
-
-            if(item.dokumentasi) {
-                html += `<a href="${item.dokumentasi}" target="_blank" class="mt-2 block text-center bg-tjlightblue hover:bg-blue-500 text-white font-bold py-1.5 rounded shadow text-[10px] transition">Cek Dokumentasi Lapangan ↗</a>`;
-            }
-
-            // --- SISTEM ROLE EDIT DINAMIS ---
-            const r = userRole ? userRole.toLowerCase() : '';
-            if (r === 'superadmin' || r === 'prasarana' || r === 'perencanaan') {
-                html += `<div class="mt-3 pt-2 border-t border-gray-200">
-                            <p class="text-[10px] font-black text-tjblue mb-2">⚙️ MODE EDIT (${r.toUpperCase()})</p>
-                            <div class="space-y-1.5">`;
-
-                // PRASARANA & SUPERADMIN (Kolom E, F, G)
-                if (r === 'prasarana' || r === 'superadmin') {
-                    html += `<input type="text" id="ed-e-${item.rowId}" value="${item.kondisiE}" placeholder="Kondisi E..." class="w-full text-[10px] p-1.5 border rounded">`;
-                    html += `<input type="text" id="ed-f-${item.rowId}" value="${item.kondisiF}" placeholder="Kondisi F..." class="w-full text-[10px] p-1.5 border rounded">`;
-                    html += `<input type="text" id="ed-g-${item.rowId}" value="${item.kondisiG}" placeholder="Kondisi G..." class="w-full text-[10px] p-1.5 border rounded">`;
-                }
-
-                // PERENCANAAN & SUPERADMIN (Kolom B, C, J)
-                if (r === 'perencanaan' || r === 'superadmin') {
-                    html += `<input type="text" id="ed-b-${item.rowId}" value="${item.nama}" placeholder="Nama Bus Stop..." class="w-full text-[10px] p-1.5 border border-blue-200 rounded">`;
-                    html += `<input type="text" id="ed-c-${item.rowId}" value="${item.koordinat}" placeholder="Koordinat Lat,Long..." class="w-full text-[10px] p-1.5 border border-blue-200 rounded">`;
-                    html += `<input type="text" id="ed-j-${item.rowId}" value="${item.rute}" placeholder="Rute..." class="w-full text-[10px] p-1.5 border border-blue-200 rounded">`;
-                }
-
-                // Keterangan H (Prasarana, Perencanaan, Superadmin)
-                html += `<textarea id="ed-h-${item.rowId}" placeholder="Keterangan Tambahan..." class="w-full text-[10px] p-1.5 border rounded h-12">${item.keterangan}</textarea>`;
-
-                // Dokumentasi I (Hanya Superadmin)
-                if (r === 'superadmin') {
-                    html += `<input type="text" id="ed-i-${item.rowId}" value="${item.dokumentasi}" placeholder="Link GDrive Dokumentasi..." class="w-full text-[10px] p-1.5 border border-red-200 bg-red-50 rounded">`;
-                }
-
-                html += `<button onclick="submitUpdate(${item.rowId})" id="btn-up-${item.rowId}" class="w-full mt-1 bg-tjorange hover:bg-yellow-500 text-tjblue font-black py-1.5 rounded text-[11px] shadow transition">Simpan ke Server</button>
-                        </div></div>`;
-            } else if (r === 'observer') {
-                html += `<p class="mt-2 text-[9px] text-center text-red-500 font-bold bg-red-50 p-1 rounded border border-red-100">Role OBSERVER hanya dapat melihat data.</p>`;
-            }
-
-            html += `</div>`;
-            return html;
-        }
-
-        // 6. Mengirim Update POST
-        function submitUpdate(rowId) {
-            const btn = document.getElementById(`btn-up-${rowId}`);
-            btn.innerText = "Memproses..."; btn.disabled = true;
-
-            let payload = { action: "update", username: currentUser, password: currentPass, rowId: rowId };
+        // 6. Konten Popup Estetik (Dengan Perbaikan URL GDrive)
+        function createPopupContent(item, sym, viewMode) {
+            // Perbaikan pintar untuk URL GDrive yang 404 (menambahkan protokol HTTP jika lupa diketik di Sheet)
+            let fixLink = item.dokumentasi;
+            let btnDokumentasi = `<div class="text-[10px] text-gray-400 italic text-center p-2">Tautan dokumentasi tidak tersedia</div>`;
             
-            const eE = document.getElementById(`ed-e-${rowId}`), eF = document.getElementById(`ed-f-${rowId}`), eG = document.getElementById(`ed-g-${rowId}`);
-            const eB = document.getElementById(`ed-b-${rowId}`), eC = document.getElementById(`ed-c-${rowId}`), eJ = document.getElementById(`ed-j-${rowId}`);
-            const eH = document.getElementById(`ed-h-${rowId}`), eI = document.getElementById(`ed-i-${rowId}`);
-
-            if(eE) payload.kondisiE = eE.value; if(eF) payload.kondisiF = eF.value; if(eG) payload.kondisiG = eG.value;
-            if(eB) payload.nama = eB.value; if(eC) payload.koordinat = eC.value; if(eJ) payload.rute = eJ.value;
-            if(eH) payload.keterangan = eH.value; if(eI) payload.dokumentasi = eI.value;
-
-            fetch(API_URL, { method: 'POST', body: JSON.stringify(payload) })
-            .then(res => res.json())
-            .then(res => {
-                if(res.status === "success") {
-                    alert("Berhasil! " + res.message);
-                    map.closePopup(); fetchData(); 
-                } else {
-                    alert("Gagal: " + res.message);
-                    btn.innerText = "Simpan ke Server"; btn.disabled = false;
+            if(fixLink && fixLink.length > 5) {
+                if(!fixLink.startsWith('http://') && !fixLink.startsWith('https://')) {
+                    fixLink = 'https://' + fixLink; 
                 }
-            }).catch(err => {
-                alert("Koneksi ke server gagal.");
-                btn.innerText = "Simpan ke Server"; btn.disabled = false;
-            });
-        }
-
-        // 7. Sistem Login
-        function toggleModal(id, show) { document.getElementById(id).classList.toggle('hidden', !show); }
-
-        function login() {
-            const u = document.getElementById('login-user').value;
-            const p = document.getElementById('login-pass').value;
-            if(!u || !p) return alert("Harap isi username dan password!");
-
-            fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: "login", username: u, password: p }) })
-            .then(res => res.json())
-            .then(res => {
-                if(res.status === "success") {
-                    currentUser = u; currentPass = p; userRole = res.role;
-                    localStorage.setItem('webgis_user', u); localStorage.setItem('webgis_pass', p); localStorage.setItem('webgis_role', res.role);
-                    updateAuthUI(); toggleModal('login-modal', false); applyFilters();
-                } else alert(res.message);
-            }).catch(err => alert("Gagal menghubungi server otentikasi."));
-        }
-
-        function logout() {
-            localStorage.clear(); currentUser = null; currentPass = null; userRole = null;
-            updateAuthUI(); applyFilters();
-        }
-
-        function checkLocalAuth() {
-            currentUser = localStorage.getItem('webgis_user'); currentPass = localStorage.getItem('webgis_pass'); userRole = localStorage.getItem('webgis_role');
-            updateAuthUI();
-        }
-
-        function updateAuthUI() {
-            if(currentUser && userRole) {
-                document.getElementById('auth-logged-out').classList.add('hidden');
-                document.getElementById('auth-logged-in').classList.remove('hidden');
-                document.getElementById('user-display').innerText = `${currentUser} (${userRole.toUpperCase()})`;
-            } else {
-                document.getElementById('auth-logged-out').classList.remove('hidden');
-                document.getElementById('auth-logged-in').classList.add('hidden');
+                // rel="noopener noreferrer" mencegah manipulasi tab untuk link eksternal
+                btnDokumentasi = `<a href="${fixLink}" target="_blank" rel="noopener noreferrer" class="block text-center bg-tjblue hover:bg-blue-800 text-white font-bold py-2.5 rounded-b-lg text-[11px] uppercase tracking-wider transition"><i class="fa-solid fa-up-right-from-square mr-1.5"></i> Buka Foto Lapangan</a>`;
             }
+
+            // Tanda visual yang di-highlight di dalam popup sesuai mode dropdown saat ini
+            const hiE = viewMode === 'E' ? 'bg-blue-50 border-l-2 border-tjblue' : '';
+            const hiF = viewMode === 'F' ? 'bg-blue-50 border-l-2 border-tjblue' : '';
+            const hiG = viewMode === 'G' ? 'bg-blue-50 border-l-2 border-tjblue' : '';
+
+            return `
+                <div class="flex flex-col bg-white">
+                    <div class="${sym.color} text-white px-4 py-3 flex items-start justify-between shadow-md relative z-10">
+                        <div class="pr-2">
+                            <h4 class="font-black text-[13px] uppercase tracking-wide leading-tight mb-1">${item.nama}</h4>
+                            <span class="inline-block bg-white text-gray-900 text-[9px] px-2 py-0.5 rounded-full font-bold shadow-sm"><i class="fa-solid fa-route mr-1 text-tjorange"></i>${item.rute || 'Tidak Diketahui'}</span>
+                        </div>
+                        <i class="fa-solid ${sym.icon} text-2xl opacity-80"></i>
+                    </div>
+                    
+                    <div class="px-4 py-3 text-xs text-gray-700 space-y-2.5 bg-gray-50 border-b border-gray-100">
+                        <div class="flex justify-between items-center p-1.5 rounded ${hiE}">
+                            <span class="font-semibold text-gray-500 w-1/2">Bus Stop (E)</span>
+                            <span class="font-bold text-right text-gray-800 w-1/2">${item.kondisiE || '-'}</span>
+                        </div>
+                        <div class="flex justify-between items-center p-1.5 rounded ${hiF}">
+                            <span class="font-semibold text-gray-500 w-1/2">Papan Rute (F)</span>
+                            <span class="font-bold text-right text-gray-800 w-1/2">${item.kondisiF || '-'}</span>
+                        </div>
+                        <div class="flex justify-between items-center p-1.5 rounded ${hiG}">
+                            <span class="font-semibold text-gray-500 w-1/2">Area Tunggu (G)</span>
+                            <span class="font-bold text-right text-gray-800 w-1/2">${item.kondisiG || '-'}</span>
+                        </div>
+                    </div>
+                    
+                    <div class="px-4 py-3 bg-white">
+                        <span class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Keterangan Surveyor:</span>
+                        <p class="text-xs text-gray-600 italic leading-relaxed">${item.keterangan || 'Tidak ada catatan tambahan.'}</p>
+                    </div>
+                    
+                    ${btnDokumentasi}
+                </div>
+            `;
         }
     </script>
 </body>
