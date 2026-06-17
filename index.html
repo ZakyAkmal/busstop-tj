@@ -54,7 +54,7 @@
 
     <div class="flex flex-col md:flex-row flex-1 overflow-hidden relative">
         
-        <aside id="sidebar" class="w-full md:w-[26rem] h-[55vh] md:h-full bg-white shadow-2xl z-40 flex flex-col border-t md:border-t-0 md:border-r border-gray-200 shrink-0 relative order-2 md:order-1">
+        <aside id="sidebar" class="w-full md:w-[26rem] md:min-w-[20rem] md:max-w-[40rem] md:resize-x h-[55vh] md:h-full bg-white shadow-2xl z-40 flex flex-col border-t md:border-t-0 md:border-r border-gray-200 shrink-0 relative order-2 md:order-1 transition-all duration-300">
             <div class="p-4 md:p-6 flex-1 overflow-y-auto overflow-x-hidden space-y-5 md:space-y-6">
                 
                 <div class="space-y-3">
@@ -116,7 +116,8 @@
     <script src="https://unpkg.com/leaflet.markercluster@1.4.1/dist/leaflet.markercluster.js"></script>
 
     <script>
-        const API_URL = "https://script.google.com/macros/s/AKfycbx6XcRBW4LoiyRdxBLMLggPb6L_X0ek6d1DyfqiCcJTQSLMikw--S0aJPL60lR73mur/exec";
+        // URL API GOOGLE APPS SCRIPT YANG BARU DITANAMKAN
+        const API_URL = "https://script.google.com/macros/s/AKfycbwcE-rC1hubk0ZuYgR9ZjBIKPv7R5lG35YEEl1ajF9Md5-TbXslqgV9SoYMTLCaU5TJ/exec";
 
         let map, markerCluster, allData = [];
         let currentChart = null;
@@ -169,7 +170,7 @@
         });
         map.addLayer(markerCluster);
 
-        // FITUR KUSTOM DRAG RESIZE UNTUK SIDEBAR
+        // DRAG HANDLE SIDEBAR
         const sidebar = document.getElementById('sidebar');
         const dragHandle = document.getElementById('drag-handle');
         let isResizing = false;
@@ -177,16 +178,15 @@
         dragHandle.addEventListener('mousedown', (e) => {
             isResizing = true;
             document.body.style.cursor = 'col-resize';
-            e.preventDefault(); // Mencegah teks ter-highlight saat di-drag
+            e.preventDefault(); 
         });
 
         document.addEventListener('mousemove', (e) => {
             if (!isResizing) return;
-            // Batasi lebar minimal 320px dan maksimal 70% dari layar
             let newWidth = e.clientX;
             if (newWidth > 320 && newWidth < window.innerWidth * 0.7) {
                 sidebar.style.width = newWidth + 'px';
-                if(map) map.invalidateSize(); // Peta otomatis menyesuaikan ruang kosong secara real-time
+                if(map) map.invalidateSize(); 
             }
         });
 
@@ -216,7 +216,6 @@
         function toggleSidebar() {
             if (sidebar.style.display === 'none') {
                 sidebar.style.display = 'flex';
-                // Reset ukuran ke default Tailwind agar rapi
                 sidebar.style.width = ''; 
             } else {
                 sidebar.style.display = 'none';
@@ -371,7 +370,6 @@
                             datalabels: {
                                 color: '#ffffff', 
                                 font: { weight: 'bold', size: 12, family: 'PT Sans' }, 
-                                // textStroke dihapus sesuai permintaan agar tidak ada shadow/garis tepi di font persentasenya
                                 formatter: (value, ctx) => {
                                     let sum = 0;
                                     let dataArr = ctx.chart.data.datasets[0].data;
@@ -386,14 +384,19 @@
             }
         }
 
+        // FUNGSI POPUP DENGAN TOMBOL DIRECTIONS BARU
         function createPopupContent(item, sym) {
             let fixLink = item.dokumentasi;
-            let btnDokumentasi = `<div class="text-[11px] text-gray-400 italic text-center p-3 bg-gray-50 border-t border-gray-100 rounded-b-xl">Dokumentasi foto tidak tersedia.</div>`;
+            let btnDokumentasi = `<div class="flex-1 flex justify-center items-center text-[10px] text-gray-400 italic bg-gray-50 border-t border-gray-100 p-2">Foto tak tersedia</div>`;
             
             if(fixLink && fixLink.length > 5) {
                 if(!fixLink.startsWith('http://') && !fixLink.startsWith('https://')) fixLink = 'https://' + fixLink; 
-                btnDokumentasi = `<a href="${fixLink}" target="_blank" rel="noopener noreferrer" class="block text-center bg-tjblue hover:bg-blue-800 text-white font-bold py-3 rounded-b-xl text-xs uppercase tracking-widest transition"><i class="fa-solid fa-camera mr-1.5"></i> Cek Foto Lapangan</a>`;
+                btnDokumentasi = `<a href="${fixLink}" target="_blank" rel="noopener noreferrer" class="flex-1 flex justify-center items-center bg-tjblue hover:bg-blue-800 text-white font-bold py-2.5 md:py-3 text-[10px] md:text-[11px] uppercase tracking-widest transition"><i class="fa-solid fa-camera mr-1.5"></i> Cek Foto</a>`;
             }
+
+            // Google Maps URL untuk Directions berdasarkan koordinat (lat, lng)
+            const mapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${item.lat},${item.lng}`;
+            const btnDirections = `<a href="${mapsUrl}" target="_blank" rel="noopener noreferrer" class="flex-1 flex justify-center items-center bg-tjorange hover:bg-yellow-500 text-tjblue font-bold py-2.5 md:py-3 text-[10px] md:text-[11px] uppercase tracking-widest transition border-r border-white/20"><i class="fa-solid fa-route mr-1.5"></i> Directions</a>`;
 
             return `
                 <div class="flex flex-col bg-white rounded-xl font-['PT_Sans']">
@@ -427,7 +430,10 @@
                         <p class="text-[11px] md:text-[12px] text-gray-700 leading-relaxed">${item.keterangan || '<span class="italic opacity-50">Tidak ada catatan</span>'}</p>
                     </div>
                     
-                    ${btnDokumentasi}
+                    <div class="flex w-full rounded-b-xl overflow-hidden">
+                        ${btnDirections}
+                        ${btnDokumentasi}
+                    </div>
                 </div>
             `;
         }
