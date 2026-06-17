@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard WebGIS NBRT & Mikrotrans</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.Default.css" />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        tjblue: '#002855',
+                        tjorange: '#F2A900',
+                        tjlightblue: '#00A1E4'
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        html, body { height: 100%; margin: 0; background-color: #f3f4f6; }
+        #map { height: 100%; width: 100%; border-radius: 0.5rem; z-index: 10; }
+        .custom-popup .leaflet-popup-content-wrapper { padding: 0; overflow: hidden; border-radius: 8px; border: 2px solid #002855; }
+        .custom-popup .leaflet-popup-content { margin: 0; width: 300px !important; }
+        /* Scrollbar custom untuk sidebar */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #002855; border-radius: 3px; }
+    </style>
+</head>
+<body class="flex flex-col h-screen font-sans text-gray-800 overflow-hidden">
+
+    <header class="bg-tjblue text-white shadow-md z-50 flex justify-between items-center px-6 py-3 shrink-0">
+        <div class="flex items-center space-x-3">
+            <div class="bg-tjorange text-tjblue font-black text-xl px-2 py-1 rounded">TJ</div>
+            <div>
+                <h1 class="font-bold text-lg leading-tight">Dashboard Monitoring Prasarana</h1>
+                <p class="text-[11px] text-gray-300">WebGIS Interaktif NBRT & Mikrotrans</p>
+            </div>
+        </div>
+        <div class="flex items-center space-x-4">
+            <span id="loading-badge" class="px-3 py-1 text-xs bg-tjorange text-tjblue font-bold rounded animate-pulse">Sinkronisasi Data...</span>
+            
+            <div id="auth-logged-out">
+                <button onclick="toggleModal('login-modal', true)" class="bg-transparent hover:bg-white/10 border border-white text-white font-semibold text-xs py-1.5 px-4 rounded transition">Login Petugas</button>
+            </div>
+            <div id="auth-logged-in" class="hidden flex items-center space-x-3">
+                <div class="text-right">
+                    <p class="text-[10px] text-gray-300">Masuk sebagai:</p>
+                    <p id="user-display" class="text-sm font-bold text-tjorange">@username</p>
+                </div>
+                <button onclick="logout()" class="bg-red-500 hover:bg-red-600 text-white font-medium text-xs py-1.5 px-3 rounded transition shadow">Logout</button>
+            </div>
+        </div>
+    </header>
+
+    <div class="flex flex-1 overflow-hidden">
+        
+        <aside class="w-72 bg-white shadow-xl z-40 flex flex-col h-full border-r border-gray-200 shrink-0">
+            <div class="p-4 flex-1 overflow-y-auto space-y-5">
+                
+                <div class="bg-blue-50 border-l-4 border-tjblue p-3 rounded-r">
+                    <h3 class="text-xs font-bold text-tjblue uppercase mb-1">Pencarian</h3>
+                    <input type="text" id="search-input" oninput="applyFilters()" placeholder="Cari Nama Halte / Rute..." class="w-full text-sm px-3 py-2 border rounded shadow-sm focus:ring-2 focus:ring-tjorange focus:outline-none">
+                </div>
+
+                <div class="space-y-3">
+                    <h3 class="text-xs font-bold text-tjblue uppercase border-b pb-1">Filter Parameter</h3>
+                    <div>
+                        <label class="block text-[11px] font-bold text-gray-600 mb-1">KONDISI KOLOM E</label>
+                        <select id="filter-e" onchange="applyFilters()" class="w-full text-sm px-2 py-1.5 border rounded shadow-sm focus:ring-2 focus:ring-tjorange focus:outline-none bg-gray-50"></select>
+                    </div>
+                    <div>
+                        <label class="block text-[11px] font-bold text-gray-600 mb-1">KONDISI KOLOM F</label>
+                        <select id="filter-f" onchange="applyFilters()" class="w-full text-sm px-2 py-1.5 border rounded shadow-sm focus:ring-2 focus:ring-tjorange focus:outline-none bg-gray-50"></select>
+                    </div>
+                    <div>
+                        <label class="block text-[11px] font-bold text-gray-600 mb-1">KONDISI KOLOM G</label>
+                        <select id="filter-g" onchange="applyFilters()" class="w-full text-sm px-2 py-1.5 border rounded shadow-sm focus:ring-2 focus:ring-tjorange focus:outline-none bg-gray-50"></select>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <main class="flex-1 flex flex-col h-full overflow-hidden bg-gray-100 p-3 space-y-3">
+            
+            <div class="bg-white rounded-lg shadow p-3 shrink-0 flex gap-4 h-48">
+                <div class="bg-tjblue rounded-lg p-4 flex flex-col justify-center items-center text-white w-48 shrink-0 shadow-inner">
+                    <h3 class="text-xs font-semibold text-gray-300 text-center">Total Titik Ditampilkan</h3>
+                    <p id="score-total" class="text-5xl font-black text-tjorange my-2">0</p>
+                    <p class="text-[10px] text-gray-400">Dari <span id="score-all">0</span> total data base</p>
+                </div>
+                
+                <div class="flex-1 flex flex-col items-center justify-center relative">
+                    <h4 class="text-[10px] font-bold text-gray-500 uppercase mb-1">Statistik Kolom E</h4>
+                    <div class="relative w-full h-32 flex justify-center"><canvas id="chartE"></canvas></div>
+                </div>
+                <div class="flex-1 flex flex-col items-center justify-center border-l border-gray-100 relative">
+                    <h4 class="text-[10px] font-bold text-gray-500 uppercase mb-1">Statistik Kolom F</h4>
+                    <div class="relative w-full h-32 flex justify-center"><canvas id="chartF"></canvas></div>
+                </div>
+                <div class="flex-1 flex flex-col items-center justify-center border-l border-gray-100 relative">
+                    <h4 class="text-[10px] font-bold text-gray-500 uppercase mb-1">Statistik Kolom G</h4>
+                    <div class="relative w-full h-32 flex justify-center"><canvas id="chartG"></canvas></div>
+                </div>
+            </div>
+
+            <div class="flex-1 bg-white rounded-lg shadow p-1 relative">
+                <div id="map"></div>
+            </div>
+        </main>
+    </div>
+
+    <div id="login-modal" class="hidden fixed inset-0 bg-tjblue bg-opacity-80 z-[9999] flex items-center justify-center p-4 backdrop-blur-sm">
+        <div class="bg-white rounded-xl shadow-2xl p-6 w-full max-w-sm border-t-4 border-tjorange">
+            <h3 class="font-bold text-xl text-tjblue mb-1">Otorisasi Petugas</h3>
+            <p class="text-xs text-gray-500 mb-4">Silakan login berdasarkan divisi Anda.</p>
+            <div class="space-y-3">
+                <div>
+                    <label class="block text-xs font-bold text-gray-600 mb-1">Username</label>
+                    <input type="text" id="login-user" class="w-full px-3 py-2 border rounded bg-gray-50 focus:ring-2 focus:ring-tjorange focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-600 mb-1">Password</label>
+                    <input type="password" id="login-pass" class="w-full px-3 py-2 border rounded bg-gray-50 focus:ring-2 focus:ring-tjorange focus:outline-none">
+                </div>
+                <div class="flex space-x-2 pt-3">
+                    <button onclick="toggleModal('login-modal', false)" class="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 py-2 rounded font-bold text-sm transition">Batal</button>
+                    <button onclick="login()" class="flex-1 bg-tjorange hover:bg-yellow-500 text-tjblue py-2 rounded font-bold text-sm transition shadow-md">Login Sistem</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet.markercluster@1.4.1/dist/leaflet.markercluster.js"></script>
+
+    <script>
+        // URL WEB APP GAS ANDA
+        const API_URL = "https://script.google.com/macros/s/AKfycbypsW5gvkxqALd-e98ZybdiLwXoQ8v3YlrS8Kit0XziQ3qRZvS6ZtMbboTLLKGWExNT/exec";
+
+        let map, markerCluster, allData = [];
+        let currentUser = null, currentPass = null, userRole = null;
+        let chartE, chartF, chartG;
+
+        // Palet Warna Chart khas TransJakarta
+        const chartColors = ['#002855', '#F2A900', '#00A1E4', '#8E9FBC', '#4A5568', '#E2E8F0'];
+
+        // 1. Inisialisasi Peta
+        map = L.map('map', { maxZoom: 18 }).setView([-6.2088, 106.8456], 11);
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+            attribution: '&copy; OpenStreetMap'
+        }).addTo(map);
+
+        markerCluster = L.markerClusterGroup({
+            chunkedLoading: true, 
+            maxClusterRadius: 40,
+            iconCreateFunction: function(cluster) {
+                return L.divIcon({ html: `<div class="bg-tjblue text-white font-bold rounded-full w-8 h-8 flex items-center justify-center border-2 border-tjorange shadow-lg">${cluster.getChildCount()}</div>`, className: '', iconSize: L.point(32, 32) });
+            }
+        });
+        map.addLayer(markerCluster);
+
+        // 2. Inisialisasi Chart.js
+        function initCharts() {
+            const commonOptions = {
+                responsive: true, maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'right', labels: { boxWidth: 10, font: { size: 9 } } }
+                },
+                cutout: '65%' // Donut style
+            };
+            
+            const ctxE = document.getElementById('chartE').getContext('2d');
+            chartE = new Chart(ctxE, { type: 'doughnut', data: { labels: [], datasets: [{ data: [], backgroundColor: chartColors }] }, options: commonOptions });
+
+            const ctxF = document.getElementById('chartF').getContext('2d');
+            chartF = new Chart(ctxF, { type: 'doughnut', data: { labels: [], datasets: [{ data: [], backgroundColor: chartColors }] }, options: commonOptions });
+
+            const ctxG = document.getElementById('chartG').getContext('2d');
+            chartG = new Chart(ctxG, { type: 'doughnut', data: { labels: [], datasets: [{ data: [], backgroundColor: chartColors }] }, options: commonOptions });
+        }
+
+        // 3. Load Data Pertama Kali
+        window.addEventListener('DOMContentLoaded', () => {
+            checkLocalAuth();
+            initCharts();
+            fetchData();
+        });
+
+        function fetchData() {
+            document.getElementById('loading-badge').classList.remove('hidden');
+            fetch(API_URL)
+                .then(res => res.json())
+                .then(data => {
+                    if(data.error) { alert(data.error); return; }
+                    allData = data;
+                    document.getElementById('score-all').innerText = allData.length;
+                    populateDropdownOptions();
+                    applyFilters();
+                    document.getElementById('loading-badge').classList.add('hidden');
+                })
+                .catch(err => {
+                    alert("Gagal memuat API Google Sheets.");
+                    document.getElementById('loading-badge').classList.add('hidden');
+                });
+        }
+
+        function populateDropdownOptions() {
+            const setE = new Set(), setF = new Set(), setG = new Set();
+            allData.forEach(item => {
+                if(item.kondisiE) setE.add(item.kondisiE);
+                if(item.kondisiF) setF.add(item.kondisiF);
+                if(item.kondisiG) setG.add(item.kondisiG);
+            });
+            fillSelect('filter-e', setE); fillSelect('filter-f', setF); fillSelect('filter-g', setG);
+        }
+
+        function fillSelect(id, set) {
+            const select = document.getElementById(id);
+            select.innerHTML = '<option value="">-- Semua --</option>';
+            Array.from(set).sort().forEach(val => select.innerHTML += `<option value="${val}">${val}</option>`);
+        }
+
+        // 4. Filter & Render Map + Update Dashboard
+        function applyFilters() {
+            const searchVal = document.getElementById('search-input').value.toLowerCase();
+            const fE = document.getElementById('filter-e').value;
+            const fF = document.getElementById('filter-f').value;
+            const fG = document.getElementById('filter-g').value;
+
+            markerCluster.clearLayers();
+            let filteredData = [];
+
+            allData.forEach(item => {
+                const matchS = !searchVal || item.nama.toLowerCase().includes(searchVal) || item.rute.toLowerCase().includes(searchVal);
+                const matchE = !
