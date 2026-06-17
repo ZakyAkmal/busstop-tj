@@ -9,72 +9,77 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.css" />
     <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.Default.css" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     
     <script>
         tailwind.config = { theme: { extend: { colors: { tjblue: '#002855', tjorange: '#F2A900' } } } }
     </script>
     <style>
-        html, body { height: 100%; margin: 0; background-color: #f8fafc; }
-        #map { height: 100%; width: 100%; border-radius: 0.5rem; z-index: 10; }
-        .custom-popup .leaflet-popup-content-wrapper { padding: 0; overflow: hidden; border-radius: 8px; border: none; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); }
-        .custom-popup .leaflet-popup-content { margin: 0; width: 320px !important; }
+        html, body { height: 100%; margin: 0; background-color: #f8fafc; font-family: 'Inter', sans-serif; }
+        #map { height: 100%; width: 100%; z-index: 10; }
+        .custom-popup .leaflet-popup-content-wrapper { padding: 0; overflow: hidden; border-radius: 12px; border: none; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04); }
+        .custom-popup .leaflet-popup-content { margin: 0; width: 340px !important; }
         ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+        .legend-item { transition: all 0.2s ease-in-out; }
+        .legend-item:hover { transform: translateX(5px); }
     </style>
 </head>
-<body class="flex flex-col h-screen font-sans text-gray-800 overflow-hidden">
+<body class="flex flex-col h-screen overflow-hidden">
 
-    <header class="bg-tjblue text-white shadow-lg z-50 flex justify-between items-center px-6 py-4 shrink-0">
-        <div class="flex items-center space-x-3">
-            <div class="bg-tjorange text-tjblue font-black text-xl px-2.5 py-1 rounded shadow-sm">TJ</div>
+    <header class="bg-tjblue text-white shadow-xl z-50 flex justify-between items-center px-6 py-4 shrink-0">
+        <div class="flex items-center space-x-4">
+            <div class="bg-tjorange text-tjblue font-black text-2xl px-3 py-1 rounded shadow-lg">TJ</div>
             <div>
-                <h1 class="font-bold text-xl leading-tight">Pemetaan Prasarana NBRT & Mikrotrans</h1>
-                <p class="text-xs text-blue-200 font-medium tracking-wide">Pembaruan Visualisasi Berbasis Kondisi</p>
+                <h1 class="font-bold text-xl leading-tight">Dashboard Prasarana Eksekutif</h1>
+                <p class="text-[11px] text-blue-200 font-medium tracking-widest uppercase">NBRT & Mikrotrans Spatial Analysis</p>
             </div>
         </div>
-        <div id="loading-badge" class="px-4 py-1.5 text-xs bg-tjorange text-tjblue font-bold rounded-full animate-pulse shadow-md">
-            <i class="fa-solid fa-satellite-dish mr-2"></i>Menarik Data...
+        <div id="loading-badge" class="px-5 py-2 text-xs bg-tjorange text-tjblue font-bold rounded-full animate-pulse shadow-md flex items-center">
+            <i class="fa-solid fa-satellite-dish mr-2 animate-spin"></i> Mensinkronisasi Data Lapangan...
         </div>
     </header>
 
-    <div class="flex flex-1 overflow-hidden">
+    <div class="flex flex-1 overflow-hidden relative">
         
-        <aside class="w-80 bg-white shadow-xl z-40 flex flex-col h-full border-r border-gray-200 shrink-0 relative">
-            <div class="p-5 flex-1 overflow-y-auto space-y-6">
+        <aside class="w-96 bg-white shadow-2xl z-40 flex flex-col h-full border-r border-gray-200 shrink-0">
+            <div class="p-6 flex-1 overflow-y-auto space-y-6">
                 
-                <div class="bg-gradient-to-br from-tjblue to-blue-900 text-white p-4 rounded-xl shadow-md border-b-4 border-tjorange">
-                    <label class="block text-[11px] font-black uppercase mb-2 tracking-wider opacity-90"><i class="fa-solid fa-layer-group mr-1.5"></i> Lihat Persebaran Dari:</label>
-                    <select id="view-mode" onchange="applyFilters()" class="w-full text-sm px-3 py-2 border-0 rounded text-gray-800 font-bold focus:ring-4 focus:ring-tjorange focus:outline-none cursor-pointer shadow-inner">
-                        <option value="E">Ketersediaan Bus Stop</option>
-                        <option value="F">Ketersediaan Papan Informasi Rute</option>
-                        <option value="G">Kondisi Tempat Tunggu Pelanggan</option>
+                <div class="space-y-2">
+                    <label class="block text-xs font-black uppercase tracking-wider text-gray-500"><i class="fa-solid fa-layer-group mr-1.5 text-tjblue"></i> Lihat Persebaran Dari:</label>
+                    <select id="view-mode" onchange="applyFilters()" class="w-full text-sm px-4 py-3 border-2 border-gray-200 rounded-lg text-gray-800 font-bold focus:border-tjorange focus:ring-0 outline-none cursor-pointer shadow-sm transition">
+                        <option value="E">1. Ketersediaan Bus Stop</option>
+                        <option value="F">2. Ketersediaan Papan Informasi Rute</option>
+                        <option value="G">3. Kondisi Tempat Tunggu Pelanggan</option>
                     </select>
                 </div>
 
                 <div>
-                    <h3 class="text-xs font-bold text-gray-500 uppercase mb-2"><i class="fa-solid fa-magnifying-glass mr-1"></i> Pencarian Spesifik</h3>
-                    <input type="text" id="search-input" oninput="applyFilters()" placeholder="Ketik Nama Halte atau Rute..." class="w-full text-sm px-4 py-2.5 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-tjblue focus:border-tjblue outline-none transition">
+                    <input type="text" id="search-input" oninput="applyFilters()" placeholder="Pencarian Nama Halte / Rute..." class="w-full text-sm px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg focus:bg-white focus:border-tjblue outline-none transition shadow-inner">
                 </div>
 
-                <div>
-                    <h3 class="text-xs font-bold text-gray-500 uppercase mb-2"><i class="fa-solid fa-list-ul mr-1"></i> Legenda Peta</h3>
-                    <div id="map-legend" class="bg-gray-50 p-3 rounded-lg border border-gray-200 space-y-2">
-                        </div>
-                </div>
-
-                <div class="bg-blue-50 p-4 rounded-lg border border-blue-100 flex items-center justify-between">
-                    <div>
-                        <p class="text-[10px] font-bold text-gray-500 uppercase">Total Titik Tampil</p>
-                        <p id="score-total" class="text-3xl font-black text-tjblue">0</p>
+                <div class="pt-2">
+                    <div class="flex justify-between items-end mb-3 border-b border-gray-200 pb-2">
+                        <h3 class="text-xs font-black text-gray-500 uppercase"><i class="fa-solid fa-chart-bar mr-1"></i> Scorecard Kondisi</h3>
+                        <span class="text-[10px] font-bold text-tjblue bg-blue-50 px-2 py-1 rounded">Total: <span id="score-total">0</span></span>
                     </div>
-                    <i class="fa-solid fa-map-location-dot text-3xl text-blue-200"></i>
+                    <div id="map-legend" class="space-y-2.5">
+                        </div>
                 </div>
 
             </div>
         </aside>
 
-        <main class="flex-1 relative bg-gray-200">
+        <main class="flex-1 relative bg-gray-100">
             <div id="map"></div>
+            
+            <div class="absolute top-5 right-5 z-[1000] w-80 bg-white/95 backdrop-blur-md rounded-2xl shadow-2xl p-5 border border-gray-100">
+                <h3 class="text-xs font-black text-tjblue uppercase tracking-wide text-center mb-1">Proporsi Keseluruhan</h3>
+                <p id="chart-subtitle" class="text-[9px] text-gray-400 text-center uppercase tracking-widest mb-3">Berdasarkan Bus Stop</p>
+                <div class="relative w-full h-48 flex justify-center items-center">
+                    <canvas id="donutChart"></canvas>
+                </div>
+            </div>
         </main>
     </div>
 
@@ -82,35 +87,52 @@
     <script src="https://unpkg.com/leaflet.markercluster@1.4.1/dist/leaflet.markercluster.js"></script>
 
     <script>
-        // MASUKKAN URL API ANDA DI SINI
-        const API_URL = "https://script.google.com/macros/s/AKfycbx6XcRBW4LoiyRdxBLMLggPb6L_X0ek6d1DyfqiCcJTQSLMikw--S0aJPL60lR73mur/exec";
+        // MASUKKAN URL API GOOGLE APPS SCRIPT ANDA DI SINI
+        const API_URL = "URL_APPS_SCRIPT_ANDA_DI_SINI";
 
         let map, markerCluster, allData = [];
+        let currentChart = null;
 
         // 1. Inisialisasi Peta
         map = L.map('map', { maxZoom: 18, zoomControl: false }).setView([-6.2088, 106.8456], 12);
         L.control.zoom({ position: 'bottomright' }).addTo(map);
-        L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-            attribution: '&copy; OpenStreetMap'
-        }).addTo(map);
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', { attribution: '&copy; OpenStreetMap' }).addTo(map);
 
+        // 2. Logika Klaster Pintar (Pecah di Zoom 15 & Warna Dominan)
         markerCluster = L.markerClusterGroup({
             chunkedLoading: true, 
-            maxClusterRadius: 45,
+            maxClusterRadius: 50,
+            disableClusteringAtZoom: 15, // KLASTERISASI HILANG SAAT DI-ZOOM DEKAT
             iconCreateFunction: function(cluster) {
+                // Menghitung dominasi warna di dalam klaster
+                const markers = cluster.getAllChildMarkers();
+                let counts = {};
+                markers.forEach(m => {
+                    const bg = m.options.customBg || "bg-tjblue";
+                    const text = m.options.customText || "text-white";
+                    counts[`${bg}|${text}`] = (counts[`${bg}|${text}`] || 0) + 1;
+                });
+
+                // Mencari warna pemenang (terbanyak)
+                let domStyle = "bg-tjblue|text-white";
+                let max = 0;
+                for (const [style, count] of Object.entries(counts)) {
+                    if (count > max) { max = count; domStyle = style; }
+                }
+                
+                const [domBg, domText] = domStyle.split('|');
+
                 return L.divIcon({ 
-                    html: `<div class="bg-white text-tjblue font-black rounded-full w-10 h-10 flex items-center justify-center border-4 border-tjorange shadow-xl text-sm">${cluster.getChildCount()}</div>`, 
+                    html: `<div class="${domBg} ${domText} font-black rounded-full w-12 h-12 flex items-center justify-center border-[3px] border-white shadow-2xl text-base ring-4 ring-black/10 transition-transform hover:scale-110">${cluster.getChildCount()}</div>`, 
                     className: '', 
-                    iconSize: L.point(40, 40) 
+                    iconSize: L.point(48, 48) 
                 });
             }
         });
         map.addLayer(markerCluster);
 
-        // 2. Load Data
-        window.addEventListener('DOMContentLoaded', () => fetchData());
-
-        function fetchData() {
+        // 3. Tarik Data Utama
+        window.addEventListener('DOMContentLoaded', () => {
             fetch(API_URL)
                 .then(res => res.json())
                 .then(data => {
@@ -120,142 +142,190 @@
                     applyFilters();
                 })
                 .catch(err => {
-                    alert("Koneksi ke database gagal. Pastikan link API benar.");
+                    alert("Koneksi gagal. Pastikan URL Apps Script sudah benar.");
                     document.getElementById('loading-badge').classList.add('hidden');
                 });
-        }
+        });
 
-        // 3. Logika Simbologi Tingkat Tinggi (Merah, Oranye, Kuning, Hijau)
-        function getSymbology(text) {
+        // 4. Otak Simbologi Klasifikasi Khusus
+        function getSymbology(text, mode) {
             text = (text || "").toLowerCase();
             
-            // Kategori MERAH (Sangat Buruk / Tidak Ada)
-            if (text.includes("tidak ada") || text.includes("hilang") || text.includes("sangat buruk")) {
-                return { color: "bg-red-500", icon: "fa-exclamation", border: "border-red-700", textCol: "text-white" };
+            // Kolom E: Ketersediaan Bus Stop
+            if (mode === 'E') {
+                if (text.includes("tidak ada")) return { id: "e1", label: "Tidak Ada Bus Stop", bg: "bg-red-500", text: "text-white", hex: "#ef4444", icon: "fa-exclamation" };
+                if (text.includes("terhalang")) return { id: "e2", label: "Ada, Namun Terhalang", bg: "bg-orange-500", text: "text-white", hex: "#f97316", icon: "fa-ban" };
+                if (text.includes("rusak")) return { id: "e3", label: "Ada, Kondisi Rusak", bg: "bg-yellow-400", text: "text-gray-900", hex: "#facc15", icon: "fa-wrench" };
+                if (text.includes("baik") || text.includes("ada")) return { id: "e4", label: "Ada, Kondisi Baik", bg: "bg-green-500", text: "text-white", hex: "#22c55e", icon: "fa-check" };
+            } 
+            // Kolom F: Ketersediaan Papan Informasi Rute
+            else if (mode === 'F') {
+                if (text.includes("rusak") || text.includes("vandalisme")) return { id: "f1", label: "Ada, Rusak / Vandalisme", bg: "bg-yellow-400", text: "text-gray-900", hex: "#facc15", icon: "fa-wrench" };
+                if (text.includes("tidak ada")) return { id: "f2", label: "Tidak Ada Informasi", bg: "bg-red-500", text: "text-white", hex: "#ef4444", icon: "fa-triangle-exclamation" };
+                if (text.includes("baik") || text.includes("ada")) return { id: "f3", label: "Ada, Kondisi Baik", bg: "bg-green-500", text: "text-white", hex: "#22c55e", icon: "fa-check" };
             }
-            // Kategori ORANYE (Terhalang / Buruk / Pecah)
-            if (text.includes("terhalang") || text.includes("buruk") || text.includes("pecah") || text.includes("coretan")) {
-                return { color: "bg-orange-500", icon: "fa-ban", border: "border-orange-700", textCol: "text-white" };
-            }
-            // Kategori KUNING (Rusak / Kurang / Pudar / Kusam)
-            if (text.includes("rusak") || text.includes("kurang") || text.includes("pudar") || text.includes("kusam")) {
-                return { color: "bg-yellow-400", icon: "fa-triangle-exclamation", border: "border-yellow-600", textCol: "text-gray-900" };
-            }
-            // Kategori HIJAU (Baik / Jelas / Ada)
-            if (text.includes("baik") || text.includes("ada") || text.includes("jelas")) {
-                return { color: "bg-green-500", icon: "fa-check", border: "border-green-700", textCol: "text-white" };
+            // Kolom G: Kondisi Tempat Tunggu
+            else if (mode === 'G') {
+                if (text.includes("berbahaya")) return { id: "g1", label: "Berbahaya Untuk Bus Berhenti", bg: "bg-red-500", text: "text-white", hex: "#ef4444", icon: "fa-bus-simple" }; // Bus Merah
+                if (text.includes("kriminalitas") || text.includes("penerangan")) return { id: "g2", label: "Kurang Penerangan / Kriminalitas", bg: "bg-orange-500", text: "text-white", hex: "#f97316", icon: "fa-user-secret" }; // Logo Kriminal
+                if (text.includes("bocor") || text.includes("pinggir")) return { id: "g3", label: "Perlu Halte Pinggir & Petugas", bg: "bg-yellow-400", text: "text-gray-900", hex: "#facc15", icon: "fa-id-card" }; // Kartu Tap
+                if (text.includes("aman") || text.includes("mudah")) return { id: "g4", label: "Aman, Mudah & Ramah", bg: "bg-green-500", text: "text-white", hex: "#22c55e", icon: "fa-check" };
             }
             
-            // Default Abu-abu untuk data tidak terdefinisi
-            return { color: "bg-gray-400", icon: "fa-circle-info", border: "border-gray-500", textCol: "text-white" };
+            return { id: "unk", label: "Data Tidak Sesuai Kriteria", bg: "bg-gray-300", text: "text-gray-700", hex: "#d1d5db", icon: "fa-circle-question" };
         }
 
-        // 4. Update Legenda Otomatis
-        function updateLegend(mode) {
-            const legendDiv = document.getElementById('map-legend');
-            let html = '';
-            
-            if(mode === 'E') {
-                html = `
-                    <div class="flex items-center text-xs"><div class="w-5 h-5 rounded-full bg-green-500 border border-green-700 text-white flex justify-center items-center mr-2"><i class="fa-solid fa-check text-[10px]"></i></div> Ketersediaan: Ada / Baik</div>
-                    <div class="flex items-center text-xs"><div class="w-5 h-5 rounded-full bg-yellow-400 border border-yellow-600 text-gray-800 flex justify-center items-center mr-2"><i class="fa-solid fa-triangle-exclamation text-[10px]"></i></div> Kondisi Rusak</div>
-                    <div class="flex items-center text-xs"><div class="w-5 h-5 rounded-full bg-orange-500 border border-orange-700 text-white flex justify-center items-center mr-2"><i class="fa-solid fa-ban text-[10px]"></i></div> Ada, Terhalang</div>
-                    <div class="flex items-center text-xs"><div class="w-5 h-5 rounded-full bg-red-500 border border-red-700 text-white flex justify-center items-center mr-2"><i class="fa-solid fa-exclamation text-[10px]"></i></div> Tidak Ada Bus Stop</div>
-                `;
-            } else {
-                html = `
-                    <div class="flex items-center text-xs"><div class="w-5 h-5 rounded-full bg-green-500 border border-green-700 text-white flex justify-center items-center mr-2"><i class="fa-solid fa-check text-[10px]"></i></div> Kondisi Baik / Jelas / Ada</div>
-                    <div class="flex items-center text-xs"><div class="w-5 h-5 rounded-full bg-yellow-400 border border-yellow-600 text-gray-800 flex justify-center items-center mr-2"><i class="fa-solid fa-triangle-exclamation text-[10px]"></i></div> Kurang / Pudar / Kusam</div>
-                    <div class="flex items-center text-xs"><div class="w-5 h-5 rounded-full bg-orange-500 border border-orange-700 text-white flex justify-center items-center mr-2"><i class="fa-solid fa-ban text-[10px]"></i></div> Buruk / Pecah / Coretan</div>
-                    <div class="flex items-center text-xs"><div class="w-5 h-5 rounded-full bg-red-500 border border-red-700 text-white flex justify-center items-center mr-2"><i class="fa-solid fa-exclamation text-[10px]"></i></div> Tidak Ada / Hilang</div>
-                `;
-            }
-            legendDiv.innerHTML = html;
-        }
-
-        // 5. Render Peta & Terapkan Filter
+        // 5. Eksekusi Filter & Render
         function applyFilters() {
             const searchVal = document.getElementById('search-input').value.toLowerCase();
             const viewMode = document.getElementById('view-mode').value;
+            
+            // Ganti Subtitle Chart
+            const modeNames = { 'E': 'Ketersediaan Bus Stop', 'F': 'Informasi Rute', 'G': 'Kondisi Tempat Tunggu' };
+            document.getElementById('chart-subtitle').innerText = "Berdasarkan " + modeNames[viewMode];
 
-            updateLegend(viewMode);
             markerCluster.clearLayers();
-            let count = 0;
+            let countTotal = 0;
+            let summaryStats = {}; // Penyimpan data untuk Scorecard & Chart
 
             allData.forEach(item => {
                 const matchS = !searchVal || item.nama.toLowerCase().includes(searchVal) || item.rute.toLowerCase().includes(searchVal);
 
                 if (matchS) {
-                    count++;
+                    countTotal++;
                     
-                    // Ambil teks untuk divisualisasikan sesuai opsi dropdown
                     let valToEvaluate = item.kondisiE;
                     if(viewMode === 'F') valToEvaluate = item.kondisiF;
                     if(viewMode === 'G') valToEvaluate = item.kondisiG;
 
-                    const sym = getSymbology(valToEvaluate);
+                    const sym = getSymbology(valToEvaluate, viewMode);
                     
-                    // Konstruksi Marker Pintar HTML
-                    const htmlIcon = `<div class="w-8 h-8 rounded-full ${sym.color} ${sym.textCol} border-[3px] ${sym.border} flex items-center justify-center shadow-lg transition-transform hover:scale-110"><i class="fa-solid ${sym.icon} text-sm"></i></div>`;
+                    // Rekap untuk Scorecard & Chart
+                    if(!summaryStats[sym.id]) summaryStats[sym.id] = { label: sym.label, count: 0, hex: sym.hex, bg: sym.bg, text: sym.text, icon: sym.icon };
+                    summaryStats[sym.id].count++;
+
+                    // Render Marker Satuan
+                    const htmlIcon = `<div class="w-8 h-8 rounded-full ${sym.bg} ${sym.text} border-2 border-white flex items-center justify-center shadow-lg"><i class="fa-solid ${sym.icon} text-[13px]"></i></div>`;
                     
                     const markerIcon = L.divIcon({ html: htmlIcon, className: '', iconSize: L.point(32,32), iconAnchor: [16,16] });
-                    const marker = L.marker([item.lat, item.lng], { icon: markerIcon });
+                    const marker = L.marker([item.lat, item.lng], { 
+                        icon: markerIcon, 
+                        customBg: sym.bg,    // Disimpan untuk perhitungan klaster
+                        customText: sym.text 
+                    });
                     
-                    marker.bindPopup(() => createPopupContent(item, sym, viewMode), { className: 'custom-popup' });
+                    marker.bindPopup(() => createPopupContent(item, sym), { className: 'custom-popup' });
                     markerCluster.addLayer(marker);
                 }
             });
 
-            document.getElementById('score-total').innerText = count;
+            document.getElementById('score-total').innerText = countTotal;
+            updateScorecardAndChart(Object.values(summaryStats).sort((a,b) => b.count - a.count)); // Urut dari terbanyak
         }
 
-        // 6. Konten Popup Estetik (Dengan Perbaikan URL GDrive)
-        function createPopupContent(item, sym, viewMode) {
-            // Perbaikan pintar untuk URL GDrive yang 404 (menambahkan protokol HTTP jika lupa diketik di Sheet)
+        // 6. Sinkronisasi Scorecard Legenda dan Donut Chart
+        function updateScorecardAndChart(statsArray) {
+            // Update UI Scorecard (Sidebar)
+            const legendDiv = document.getElementById('map-legend');
+            legendDiv.innerHTML = '';
+            
+            let chartLabels = [];
+            let chartData = [];
+            let chartColors = [];
+
+            statsArray.forEach(stat => {
+                // Tambah Item Scorecard
+                legendDiv.innerHTML += `
+                    <div class="legend-item flex items-center justify-between bg-gray-50 hover:bg-gray-100 p-2.5 rounded-lg border border-gray-200 cursor-default">
+                        <div class="flex items-center">
+                            <div class="w-8 h-8 rounded-full ${stat.bg} ${stat.text} flex justify-center items-center mr-3 shadow-sm">
+                                <i class="fa-solid ${stat.icon} text-sm"></i>
+                            </div>
+                            <span class="text-xs font-bold text-gray-700 w-48 leading-tight">${stat.label}</span>
+                        </div>
+                        <span class="text-lg font-black ${stat.text === 'text-white' ? stat.bg.replace('bg-', 'text-') : 'text-gray-900'}">${stat.count}</span>
+                    </div>
+                `;
+                // Siapkan Data Chart
+                chartLabels.push(stat.label);
+                chartData.push(stat.count);
+                chartColors.push(stat.hex);
+            });
+
+            // Update Chart.js
+            const ctx = document.getElementById('donutChart').getContext('2d');
+            if (currentChart) currentChart.destroy(); // Hapus chart lama sebelum digambar ulang
+
+            currentChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: chartLabels,
+                    datasets: [{
+                        data: chartData,
+                        backgroundColor: chartColors,
+                        borderWidth: 2,
+                        borderColor: '#ffffff',
+                        hoverOffset: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '60%',
+                    plugins: {
+                        legend: { display: false }, // Disembunyikan karena sudah ada scorecard di kiri
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return ` ${context.label}: ${context.raw} Titik`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // 7. Desain Popup Estetik
+        function createPopupContent(item, sym) {
             let fixLink = item.dokumentasi;
-            let btnDokumentasi = `<div class="text-[10px] text-gray-400 italic text-center p-2">Tautan dokumentasi tidak tersedia</div>`;
+            let btnDokumentasi = `<div class="text-[10px] text-gray-400 italic text-center p-3 bg-gray-50 border-t border-gray-100 rounded-b-xl">Dokumentasi foto tidak tersedia.</div>`;
             
             if(fixLink && fixLink.length > 5) {
-                if(!fixLink.startsWith('http://') && !fixLink.startsWith('https://')) {
-                    fixLink = 'https://' + fixLink; 
-                }
-                // rel="noopener noreferrer" mencegah manipulasi tab untuk link eksternal
-                btnDokumentasi = `<a href="${fixLink}" target="_blank" rel="noopener noreferrer" class="block text-center bg-tjblue hover:bg-blue-800 text-white font-bold py-2.5 rounded-b-lg text-[11px] uppercase tracking-wider transition"><i class="fa-solid fa-up-right-from-square mr-1.5"></i> Buka Foto Lapangan</a>`;
+                if(!fixLink.startsWith('http://') && !fixLink.startsWith('https://')) fixLink = 'https://' + fixLink; 
+                btnDokumentasi = `<a href="${fixLink}" target="_blank" rel="noopener noreferrer" class="block text-center bg-tjblue hover:bg-blue-800 text-white font-black py-3 rounded-b-xl text-[11px] uppercase tracking-widest transition"><i class="fa-solid fa-camera mr-1.5"></i> Cek Foto Lapangan</a>`;
             }
 
-            // Tanda visual yang di-highlight di dalam popup sesuai mode dropdown saat ini
-            const hiE = viewMode === 'E' ? 'bg-blue-50 border-l-2 border-tjblue' : '';
-            const hiF = viewMode === 'F' ? 'bg-blue-50 border-l-2 border-tjblue' : '';
-            const hiG = viewMode === 'G' ? 'bg-blue-50 border-l-2 border-tjblue' : '';
-
             return `
-                <div class="flex flex-col bg-white">
-                    <div class="${sym.color} text-white px-4 py-3 flex items-start justify-between shadow-md relative z-10">
-                        <div class="pr-2">
-                            <h4 class="font-black text-[13px] uppercase tracking-wide leading-tight mb-1">${item.nama}</h4>
-                            <span class="inline-block bg-white text-gray-900 text-[9px] px-2 py-0.5 rounded-full font-bold shadow-sm"><i class="fa-solid fa-route mr-1 text-tjorange"></i>${item.rute || 'Tidak Diketahui'}</span>
+                <div class="flex flex-col bg-white rounded-xl">
+                    <div class="${sym.bg} ${sym.text} px-5 py-4 flex items-center justify-between rounded-t-xl">
+                        <div class="pr-3">
+                            <h4 class="font-black text-sm uppercase tracking-wider mb-1.5">${item.nama}</h4>
+                            <span class="inline-block bg-white/20 backdrop-blur-sm text-${sym.text} text-[10px] px-2.5 py-1 rounded shadow-sm border border-white/30"><i class="fa-solid fa-route mr-1.5"></i>RUTE: <strong class="font-black">${item.rute || '-'}</strong></span>
                         </div>
-                        <i class="fa-solid ${sym.icon} text-2xl opacity-80"></i>
-                    </div>
-                    
-                    <div class="px-4 py-3 text-xs text-gray-700 space-y-2.5 bg-gray-50 border-b border-gray-100">
-                        <div class="flex justify-between items-center p-1.5 rounded ${hiE}">
-                            <span class="font-semibold text-gray-500 w-1/2">Bus Stop (E)</span>
-                            <span class="font-bold text-right text-gray-800 w-1/2">${item.kondisiE || '-'}</span>
-                        </div>
-                        <div class="flex justify-between items-center p-1.5 rounded ${hiF}">
-                            <span class="font-semibold text-gray-500 w-1/2">Papan Rute (F)</span>
-                            <span class="font-bold text-right text-gray-800 w-1/2">${item.kondisiF || '-'}</span>
-                        </div>
-                        <div class="flex justify-between items-center p-1.5 rounded ${hiG}">
-                            <span class="font-semibold text-gray-500 w-1/2">Area Tunggu (G)</span>
-                            <span class="font-bold text-right text-gray-800 w-1/2">${item.kondisiG || '-'}</span>
+                        <div class="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center shrink-0 border border-white/40 shadow-inner">
+                            <i class="fa-solid ${sym.icon} text-xl"></i>
                         </div>
                     </div>
                     
-                    <div class="px-4 py-3 bg-white">
-                        <span class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Keterangan Surveyor:</span>
-                        <p class="text-xs text-gray-600 italic leading-relaxed">${item.keterangan || 'Tidak ada catatan tambahan.'}</p>
+                    <div class="px-5 py-4 text-[11px] text-gray-600 space-y-3 bg-white">
+                        <div class="flex flex-col border-b border-gray-100 pb-2">
+                            <span class="font-bold text-gray-400 uppercase mb-0.5 tracking-wider">Bus Stop (E)</span>
+                            <span class="font-bold text-gray-800 text-xs">${item.kondisiE || '-'}</span>
+                        </div>
+                        <div class="flex flex-col border-b border-gray-100 pb-2">
+                            <span class="font-bold text-gray-400 uppercase mb-0.5 tracking-wider">Papan Rute (F)</span>
+                            <span class="font-bold text-gray-800 text-xs">${item.kondisiF || '-'}</span>
+                        </div>
+                        <div class="flex flex-col">
+                            <span class="font-bold text-gray-400 uppercase mb-0.5 tracking-wider">Area Tunggu (G)</span>
+                            <span class="font-bold text-gray-800 text-xs">${item.kondisiG || '-'}</span>
+                        </div>
+                    </div>
+                    
+                    <div class="px-5 py-3 bg-yellow-50/50 border-t border-gray-100">
+                        <span class="block text-[10px] font-black text-gray-500 uppercase mb-1.5"><i class="fa-solid fa-comment-dots mr-1"></i> Catatan Surveyor</span>
+                        <p class="text-[11px] text-gray-700 font-medium leading-relaxed">${item.keterangan || '<span class="italic opacity-50">Tidak ada catatan</span>'}</p>
                     </div>
                     
                     ${btnDokumentasi}
