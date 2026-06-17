@@ -85,12 +85,17 @@
                         <select id="filter-g" onchange="applyFilters()" class="w-full text-sm px-2 py-1.5 border rounded shadow-sm focus:ring-2 focus:ring-tjorange focus:outline-none bg-gray-50"></select>
                     </div>
                 </div>
+                
+                <div class="text-xs text-gray-400 pt-4 text-center border-t border-gray-100">
+                    <p>WebGIS System v1.0</p>
+                </div>
             </div>
         </aside>
 
         <main class="flex-1 flex flex-col h-full overflow-hidden bg-gray-100 p-3 space-y-3">
             
             <div class="bg-white rounded-lg shadow p-3 shrink-0 flex gap-4 h-48">
+                
                 <div class="bg-tjblue rounded-lg p-4 flex flex-col justify-center items-center text-white w-48 shrink-0 shadow-inner">
                     <h3 class="text-xs font-semibold text-gray-300 text-center">Total Titik Ditampilkan</h3>
                     <p id="score-total" class="text-5xl font-black text-tjorange my-2">0</p>
@@ -101,14 +106,17 @@
                     <h4 class="text-[10px] font-bold text-gray-500 uppercase mb-1">Statistik Kolom E</h4>
                     <div class="relative w-full h-32 flex justify-center"><canvas id="chartE"></canvas></div>
                 </div>
+                
                 <div class="flex-1 flex flex-col items-center justify-center border-l border-gray-100 relative">
                     <h4 class="text-[10px] font-bold text-gray-500 uppercase mb-1">Statistik Kolom F</h4>
                     <div class="relative w-full h-32 flex justify-center"><canvas id="chartF"></canvas></div>
                 </div>
+                
                 <div class="flex-1 flex flex-col items-center justify-center border-l border-gray-100 relative">
                     <h4 class="text-[10px] font-bold text-gray-500 uppercase mb-1">Statistik Kolom G</h4>
                     <div class="relative w-full h-32 flex justify-center"><canvas id="chartG"></canvas></div>
                 </div>
+
             </div>
 
             <div class="flex-1 bg-white rounded-lg shadow p-1 relative">
@@ -142,14 +150,13 @@
     <script src="https://unpkg.com/leaflet.markercluster@1.4.1/dist/leaflet.markercluster.js"></script>
 
     <script>
-        // URL WEB APP GAS ANDA
+        // URL API GOOGLE APPS SCRIPT
         const API_URL = "https://script.google.com/macros/s/AKfycbypsW5gvkxqALd-e98ZybdiLwXoQ8v3YlrS8Kit0XziQ3qRZvS6ZtMbboTLLKGWExNT/exec";
 
         let map, markerCluster, allData = [];
         let currentUser = null, currentPass = null, userRole = null;
         let chartE, chartF, chartG;
 
-        // Palet Warna Chart khas TransJakarta
         const chartColors = ['#002855', '#F2A900', '#00A1E4', '#8E9FBC', '#4A5568', '#E2E8F0'];
 
         // 1. Inisialisasi Peta
@@ -171,10 +178,8 @@
         function initCharts() {
             const commonOptions = {
                 responsive: true, maintainAspectRatio: false,
-                plugins: {
-                    legend: { position: 'right', labels: { boxWidth: 10, font: { size: 9 } } }
-                },
-                cutout: '65%' // Donut style
+                plugins: { legend: { position: 'right', labels: { boxWidth: 10, font: { size: 9 } } } },
+                cutout: '65%'
             };
             
             const ctxE = document.getElementById('chartE').getContext('2d');
@@ -207,7 +212,8 @@
                     document.getElementById('loading-badge').classList.add('hidden');
                 })
                 .catch(err => {
-                    alert("Gagal memuat API Google Sheets.");
+                    console.error("Fetch Error:", err);
+                    alert("Gagal memuat API Google Sheets. Pastikan URL Apps Script benar dan izin akses Siapa Saja.");
                     document.getElementById('loading-badge').classList.add('hidden');
                 });
         }
@@ -224,7 +230,7 @@
 
         function fillSelect(id, set) {
             const select = document.getElementById(id);
-            select.innerHTML = '<option value="">-- Semua --</option>';
+            select.innerHTML = '<option value="">-- Semua Kondisi --</option>';
             Array.from(set).sort().forEach(val => select.innerHTML += `<option value="${val}">${val}</option>`);
         }
 
@@ -240,4 +246,170 @@
 
             allData.forEach(item => {
                 const matchS = !searchVal || item.nama.toLowerCase().includes(searchVal) || item.rute.toLowerCase().includes(searchVal);
-                const matchE = !
+                const matchE = !fE || item.kondisiE === fE;
+                const matchF = !fF || item.kondisiF === fF;
+                const matchG = !fG || item.kondisiG === fG;
+
+                if (matchS && matchE && matchF && matchG) {
+                    filteredData.push(item);
+                    const markerIcon = L.divIcon({ html: `<div class="w-4 h-4 bg-tjorange border-2 border-tjblue rounded-full shadow-md"></div>`, className: '' });
+                    const marker = L.marker([item.lat, item.lng], { icon: markerIcon });
+                    
+                    marker.bindPopup(() => createPopupContent(item), { className: 'custom-popup' });
+                    markerCluster.addLayer(marker);
+                }
+            });
+
+            document.getElementById('score-total').innerText = filteredData.length;
+            updateCharts(filteredData);
+        }
+
+        function updateCharts(data) {
+            const countE = {}, countF = {}, countG = {};
+            data.forEach(d => {
+                countE[d.kondisiE || 'Tidak Ada Data'] = (countE[d.kondisiE || 'Tidak Ada Data'] || 0) + 1;
+                countF[d.kondisiF || 'Tidak Ada Data'] = (countF[d.kondisiF || 'Tidak Ada Data'] || 0) + 1;
+                countG[d.kondisiG || 'Tidak Ada Data'] = (countG[d.kondisiG || 'Tidak Ada Data'] || 0) + 1;
+            });
+
+            chartE.data.labels = Object.keys(countE); chartE.data.datasets[0].data = Object.values(countE); chartE.update();
+            chartF.data.labels = Object.keys(countF); chartF.data.datasets[0].data = Object.values(countF); chartF.update();
+            chartG.data.labels = Object.keys(countG); chartG.data.datasets[0].data = Object.values(countG); chartG.update();
+        }
+
+        // 5. Smart Popup Berdasarkan Role
+        function createPopupContent(item) {
+            let html = `
+                <div class="bg-tjblue text-white px-3 py-2 border-b-2 border-tjorange flex justify-between items-start">
+                    <div>
+                        <h4 class="font-bold text-sm uppercase leading-tight">${item.nama}</h4>
+                        <span class="bg-tjorange text-tjblue text-[9px] px-1.5 py-0.5 rounded font-black">RUTE: ${item.rute || '-'}</span>
+                    </div>
+                    <span class="text-[9px] text-gray-300">ID: ${item.rowId}</span>
+                </div>
+                
+                <div class="p-3 text-xs text-gray-700 bg-gray-50 space-y-2">
+                    <table class="w-full text-left">
+                        <tr class="border-b"><td class="text-gray-500 py-1 w-1/3">Kondisi E</td><td class="font-bold">${item.kondisiE || '-'}</td></tr>
+                        <tr class="border-b"><td class="text-gray-500 py-1">Kondisi F</td><td class="font-bold">${item.kondisiF || '-'}</td></tr>
+                        <tr class="border-b"><td class="text-gray-500 py-1">Kondisi G</td><td class="font-bold">${item.kondisiG || '-'}</td></tr>
+                        <tr><td class="text-gray-500 py-1 align-top">Keterangan</td><td class="italic">${item.keterangan || '-'}</td></tr>
+                    </table>
+            `;
+
+            if(item.dokumentasi) {
+                html += `<a href="${item.dokumentasi}" target="_blank" class="mt-2 block text-center bg-tjlightblue hover:bg-blue-500 text-white font-bold py-1.5 rounded shadow text-[10px] transition">Cek Dokumentasi Lapangan ↗</a>`;
+            }
+
+            // --- SISTEM ROLE EDIT DINAMIS ---
+            const r = userRole ? userRole.toLowerCase() : '';
+            if (r === 'superadmin' || r === 'prasarana' || r === 'perencanaan') {
+                html += `<div class="mt-3 pt-2 border-t border-gray-200">
+                            <p class="text-[10px] font-black text-tjblue mb-2">⚙️ MODE EDIT (${r.toUpperCase()})</p>
+                            <div class="space-y-1.5">`;
+
+                // PRASARANA & SUPERADMIN (Kolom E, F, G)
+                if (r === 'prasarana' || r === 'superadmin') {
+                    html += `<input type="text" id="ed-e-${item.rowId}" value="${item.kondisiE}" placeholder="Kondisi E..." class="w-full text-[10px] p-1.5 border rounded">`;
+                    html += `<input type="text" id="ed-f-${item.rowId}" value="${item.kondisiF}" placeholder="Kondisi F..." class="w-full text-[10px] p-1.5 border rounded">`;
+                    html += `<input type="text" id="ed-g-${item.rowId}" value="${item.kondisiG}" placeholder="Kondisi G..." class="w-full text-[10px] p-1.5 border rounded">`;
+                }
+
+                // PERENCANAAN & SUPERADMIN (Kolom B, C, J)
+                if (r === 'perencanaan' || r === 'superadmin') {
+                    html += `<input type="text" id="ed-b-${item.rowId}" value="${item.nama}" placeholder="Nama Bus Stop..." class="w-full text-[10px] p-1.5 border border-blue-200 rounded">`;
+                    html += `<input type="text" id="ed-c-${item.rowId}" value="${item.koordinat}" placeholder="Koordinat Lat,Long..." class="w-full text-[10px] p-1.5 border border-blue-200 rounded">`;
+                    html += `<input type="text" id="ed-j-${item.rowId}" value="${item.rute}" placeholder="Rute..." class="w-full text-[10px] p-1.5 border border-blue-200 rounded">`;
+                }
+
+                // Keterangan H (Prasarana, Perencanaan, Superadmin)
+                html += `<textarea id="ed-h-${item.rowId}" placeholder="Keterangan Tambahan..." class="w-full text-[10px] p-1.5 border rounded h-12">${item.keterangan}</textarea>`;
+
+                // Dokumentasi I (Hanya Superadmin)
+                if (r === 'superadmin') {
+                    html += `<input type="text" id="ed-i-${item.rowId}" value="${item.dokumentasi}" placeholder="Link GDrive Dokumentasi..." class="w-full text-[10px] p-1.5 border border-red-200 bg-red-50 rounded">`;
+                }
+
+                html += `<button onclick="submitUpdate(${item.rowId})" id="btn-up-${item.rowId}" class="w-full mt-1 bg-tjorange hover:bg-yellow-500 text-tjblue font-black py-1.5 rounded text-[11px] shadow transition">Simpan ke Server</button>
+                        </div></div>`;
+            } else if (r === 'observer') {
+                html += `<p class="mt-2 text-[9px] text-center text-red-500 font-bold bg-red-50 p-1 rounded border border-red-100">Role OBSERVER hanya dapat melihat data.</p>`;
+            }
+
+            html += `</div>`;
+            return html;
+        }
+
+        // 6. Mengirim Update POST
+        function submitUpdate(rowId) {
+            const btn = document.getElementById(`btn-up-${rowId}`);
+            btn.innerText = "Memproses..."; btn.disabled = true;
+
+            let payload = { action: "update", username: currentUser, password: currentPass, rowId: rowId };
+            
+            const eE = document.getElementById(`ed-e-${rowId}`), eF = document.getElementById(`ed-f-${rowId}`), eG = document.getElementById(`ed-g-${rowId}`);
+            const eB = document.getElementById(`ed-b-${rowId}`), eC = document.getElementById(`ed-c-${rowId}`), eJ = document.getElementById(`ed-j-${rowId}`);
+            const eH = document.getElementById(`ed-h-${rowId}`), eI = document.getElementById(`ed-i-${rowId}`);
+
+            if(eE) payload.kondisiE = eE.value; if(eF) payload.kondisiF = eF.value; if(eG) payload.kondisiG = eG.value;
+            if(eB) payload.nama = eB.value; if(eC) payload.koordinat = eC.value; if(eJ) payload.rute = eJ.value;
+            if(eH) payload.keterangan = eH.value; if(eI) payload.dokumentasi = eI.value;
+
+            fetch(API_URL, { method: 'POST', body: JSON.stringify(payload) })
+            .then(res => res.json())
+            .then(res => {
+                if(res.status === "success") {
+                    alert("Berhasil! " + res.message);
+                    map.closePopup(); fetchData(); 
+                } else {
+                    alert("Gagal: " + res.message);
+                    btn.innerText = "Simpan ke Server"; btn.disabled = false;
+                }
+            }).catch(err => {
+                alert("Koneksi ke server gagal.");
+                btn.innerText = "Simpan ke Server"; btn.disabled = false;
+            });
+        }
+
+        // 7. Sistem Login
+        function toggleModal(id, show) { document.getElementById(id).classList.toggle('hidden', !show); }
+
+        function login() {
+            const u = document.getElementById('login-user').value;
+            const p = document.getElementById('login-pass').value;
+            if(!u || !p) return alert("Harap isi username dan password!");
+
+            fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: "login", username: u, password: p }) })
+            .then(res => res.json())
+            .then(res => {
+                if(res.status === "success") {
+                    currentUser = u; currentPass = p; userRole = res.role;
+                    localStorage.setItem('webgis_user', u); localStorage.setItem('webgis_pass', p); localStorage.setItem('webgis_role', res.role);
+                    updateAuthUI(); toggleModal('login-modal', false); applyFilters();
+                } else alert(res.message);
+            }).catch(err => alert("Gagal menghubungi server otentikasi."));
+        }
+
+        function logout() {
+            localStorage.clear(); currentUser = null; currentPass = null; userRole = null;
+            updateAuthUI(); applyFilters();
+        }
+
+        function checkLocalAuth() {
+            currentUser = localStorage.getItem('webgis_user'); currentPass = localStorage.getItem('webgis_pass'); userRole = localStorage.getItem('webgis_role');
+            updateAuthUI();
+        }
+
+        function updateAuthUI() {
+            if(currentUser && userRole) {
+                document.getElementById('auth-logged-out').classList.add('hidden');
+                document.getElementById('auth-logged-in').classList.remove('hidden');
+                document.getElementById('user-display').innerText = `${currentUser} (${userRole.toUpperCase()})`;
+            } else {
+                document.getElementById('auth-logged-out').classList.remove('hidden');
+                document.getElementById('auth-logged-in').classList.add('hidden');
+            }
+        }
+    </script>
+</body>
+</html>
