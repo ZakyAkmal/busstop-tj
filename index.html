@@ -64,7 +64,7 @@
                     </div>
                     <div>
                         <label class="block text-[11px] md:text-xs font-bold uppercase tracking-wider text-gray-500 mb-1.5"><i class="fa-solid fa-route mr-1.5 text-tjblue"></i> Cari Berdasarkan Rute</label>
-                        <input type="text" id="route-input" oninput="applyFilters()" placeholder="Ketik Rute (Contoh: JAK.10 atau 10K)..." class="w-full text-sm px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:bg-white focus:border-tjblue focus:ring-2 focus:ring-blue-100 outline-none transition shadow-inner">
+                        <input type="text" id="route-input" oninput="applyFilters()" placeholder="Ketik Rute (Contoh: JAK.10 atau 6K)..." class="w-full text-sm px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:bg-white focus:border-tjblue focus:ring-2 focus:ring-blue-100 outline-none transition shadow-inner">
                     </div>
                 </div>
 
@@ -80,7 +80,7 @@
                 <div class="pt-1 md:pt-2">
                     <div class="flex justify-between items-end mb-3 border-b border-gray-200 pb-2">
                         <h3 class="text-[11px] md:text-xs font-bold text-gray-500 uppercase"><i class="fa-solid fa-list-check mr-1"></i> Keterangan</h3>
-                        <span class="text-[10px] md:text-[11px] font-bold text-tjblue bg-blue-50 px-2.5 py-1 rounded">Di Peta: <span id="score-total">0</span> Titik</span>
+                        <span class="text-[10px] md:text-[11px] font-bold text-tjblue bg-blue-50 px-2.5 py-1 rounded">Total: <span id="score-total">0</span> Titik</span>
                     </div>
                     <div id="map-legend" class="space-y-2 md:space-y-2.5">
                         </div>
@@ -252,7 +252,7 @@
             }
             else if (mode === 'G') {
                 if (text.includes("berbahaya")) return { id: "g1", label: "Berbahaya Untuk Berhenti", bg: "bg-red-500", text: "text-white", hex: "#ef4444", icon: "fa-bus-simple" }; 
-                if (text.includes("kriminalitas") || text.includes("penerangan")) return { id: "g2", label: "Potensi Kriminalitas", bg: "bg-orange-500", text: "text-white", hex: "#f97316", icon: "fa-user-secret" }; 
+                if (text.includes("kriminalitas") || text.includes("penerangan")) return { id: "g2", label: "Kurang Penerangan & Potensi Kriminalitas", bg: "bg-orange-500", text: "text-white", hex: "#f97316", icon: "fa-user-secret" }; 
                 if (text.includes("bocor") || text.includes("pinggir")) return { id: "g3", label: "Perlu Halte & Petugas", bg: "bg-yellow-400", text: "text-gray-900", hex: "#facc15", icon: "fa-id-card" }; 
                 if (text.includes("aman") || text.includes("mudah")) return { id: "g4", label: "Aman & Ramah Pelanggan", bg: "bg-green-500", text: "text-white", hex: "#22c55e", icon: "fa-check" };
             }
@@ -391,7 +391,7 @@
             
             if(fixLink && fixLink.length > 5) {
                 if(!fixLink.startsWith('http://') && !fixLink.startsWith('https://')) fixLink = 'https://' + fixLink; 
-                btnDokumentasi = `<a href="${fixLink}" target="_blank" rel="noopener noreferrer" class="flex-1 flex justify-center items-center bg-tjblue hover:bg-blue-800 text-white font-bold py-2.5 md:py-3 text-[10px] md:text-[11px] uppercase tracking-widest transition"><i class="fa-solid fa-camera mr-1.5"></i> Cek Foto</a>`;
+                btnDokumentasi = `<a href="${fixLink}" target="_blank" rel="noopener noreferrer" class="flex-1 flex justify-center items-center bg-tjblue hover:bg-blue-800 text-white font-bold py-2.5 md:py-3 text-[10px] md:text-[11px] uppercase tracking-widest transition"><i class="fa-solid fa-camera mr-1.5"></i> Dokumentasi</a>`;
             }
 
             // Google Maps URL untuk Directions berdasarkan koordinat (lat, lng)
@@ -412,15 +412,15 @@
                     
                     <div class="px-4 py-3 text-[11px] md:text-[12px] text-gray-600 space-y-2 bg-white">
                         <div class="flex flex-col border-b border-gray-100 pb-1.5">
-                            <span class="font-bold text-gray-400 uppercase tracking-wider">Bus Stop (E)</span>
+                            <span class="font-bold text-gray-400 uppercase tracking-wider">Bus Stop</span>
                             <span class="font-bold text-gray-800 text-[12px] md:text-[13px]">${item.kondisiE || '-'}</span>
                         </div>
                         <div class="flex flex-col border-b border-gray-100 pb-1.5">
-                            <span class="font-bold text-gray-400 uppercase tracking-wider">Papan Rute (F)</span>
+                            <span class="font-bold text-gray-400 uppercase tracking-wider">Papan Rute</span>
                             <span class="font-bold text-gray-800 text-[12px] md:text-[13px]">${item.kondisiF || '-'}</span>
                         </div>
                         <div class="flex flex-col">
-                            <span class="font-bold text-gray-400 uppercase tracking-wider">Area Tunggu (G)</span>
+                            <span class="font-bold text-gray-400 uppercase tracking-wider">Area Tunggu</span>
                             <span class="font-bold text-gray-800 text-[12px] md:text-[13px]">${item.kondisiG || '-'}</span>
                         </div>
                     </div>
