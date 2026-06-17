@@ -20,25 +20,29 @@
         html, body { height: 100%; margin: 0; background-color: #f8fafc; font-family: 'PT Sans', sans-serif; }
         #map { height: 100%; width: 100%; z-index: 10; }
         
-        /* Pengaturan Ukuran Popup Adaptif untuk HP dan Laptop */
+        /* Popup Adaptif */
         .custom-popup .leaflet-popup-content-wrapper { padding: 0; overflow: hidden; border-radius: 12px; border: none; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04); }
         .custom-popup .leaflet-popup-content { margin: 0; width: 280px !important; }
-        @media (min-width: 768px) {
-            .custom-popup .leaflet-popup-content { width: 340px !important; }
-        }
+        @media (min-width: 768px) { .custom-popup .leaflet-popup-content { width: 340px !important; } }
 
         ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
         .legend-item { transition: all 0.2s ease-in-out; }
         .legend-item:hover { transform: translateX(5px); }
+        
+        /* Kustomisasi Layer Control Leaflet */
+        .leaflet-control-layers { border-radius: 8px !important; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1) !important; border: 2px solid #e2e8f0 !important; font-family: 'PT Sans', sans-serif; font-weight: bold; }
     </style>
 </head>
 <body class="flex flex-col h-screen overflow-hidden">
 
     <header class="bg-tjblue text-white shadow-xl z-50 flex justify-between items-center px-3 md:px-6 py-2 md:py-3 shrink-0">
-        <div class="flex items-center space-x-2 md:space-x-4 w-3/4 md:w-auto">
+        <div class="flex items-center w-3/4 md:w-auto">
+            <button onclick="toggleSidebar()" class="mr-3 md:mr-4 hover:text-tjorange transition p-1 text-lg md:text-xl" title="Sembunyikan/Tampilkan Panel">
+                <i class="fa-solid fa-bars"></i>
+            </button>
             <img src="TJ-Putih.png" alt="Logo Transjakarta" class="h-6 md:h-10 drop-shadow-md shrink-0">
-            <div class="min-w-0">
+            <div class="min-w-0 ml-2 md:ml-4">
                 <h1 class="font-bold text-sm md:text-xl leading-tight tracking-wide truncate">Dashboard Kondisi Bus Stop</h1>
                 <p class="text-[8px] md:text-xs text-blue-200 font-bold tracking-widest uppercase opacity-90 truncate">Layanan Mikrotrans dan Non-BRT</p>
             </div>
@@ -52,20 +56,8 @@
 
     <div class="flex flex-col md:flex-row flex-1 overflow-hidden relative">
         
-        <main class="w-full h-[45vh] md:h-full md:flex-1 relative bg-gray-100 order-1 md:order-2 shrink-0 md:shrink z-10">
-            <div id="map"></div>
-            
-            <div class="hidden md:block absolute top-5 right-5 z-[1000] w-[340px] bg-white/95 backdrop-blur-md rounded-2xl shadow-2xl p-5 border border-gray-100">
-                <h3 class="text-xs font-bold text-tjblue uppercase tracking-wide text-center mb-1">Proporsi Keseluruhan</h3>
-                <p id="chart-subtitle" class="text-[10px] text-gray-400 text-center uppercase tracking-widest mb-4">Berdasarkan Bus Stop</p>
-                <div class="relative w-full min-h-[260px] flex justify-center items-center">
-                    <canvas id="donutChart"></canvas>
-                </div>
-            </div>
-        </main>
-
-        <aside class="w-full md:w-[26rem] h-[55vh] md:h-full bg-white shadow-2xl z-40 flex flex-col border-t md:border-t-0 md:border-r border-gray-200 shrink-0 order-2 md:order-1">
-            <div class="p-4 md:p-6 flex-1 overflow-y-auto space-y-5 md:space-y-6">
+        <aside id="sidebar" class="w-full md:w-[26rem] md:min-w-[20rem] md:max-w-[40rem] md:resize-x h-[55vh] md:h-full bg-white shadow-2xl z-40 flex flex-col border-t md:border-t-0 md:border-r border-gray-200 shrink-0 overflow-hidden order-2 md:order-1 transition-all duration-300">
+            <div class="p-4 md:p-6 flex-1 overflow-y-auto overflow-x-hidden space-y-5 md:space-y-6">
                 
                 <div class="space-y-3">
                     <div>
@@ -99,6 +91,25 @@
             </div>
         </aside>
 
+        <main class="w-full h-[45vh] md:h-full md:flex-1 relative bg-gray-100 order-1 md:order-2 shrink-0 md:shrink z-10">
+            <div id="map"></div>
+            
+            <div class="hidden md:block absolute top-5 right-5 z-[1000]">
+                <div id="chart-panel-content" class="w-[340px] bg-white/95 backdrop-blur-md rounded-2xl shadow-2xl p-5 border border-gray-100 relative transition-all duration-300">
+                    <button onclick="toggleChart()" class="absolute top-4 right-4 text-gray-400 hover:text-red-500 transition" title="Sembunyikan Grafik">
+                        <i class="fa-solid fa-xmark text-lg"></i>
+                    </button>
+                    <h3 class="text-xs font-bold text-tjblue uppercase tracking-wide text-center mb-1 pr-4">Proporsi Keseluruhan</h3>
+                    <p id="chart-subtitle" class="text-[10px] text-gray-400 text-center uppercase tracking-widest mb-4 pr-4">Berdasarkan Bus Stop</p>
+                    <div class="relative w-full min-h-[250px] flex justify-center items-center">
+                        <canvas id="donutChart"></canvas>
+                    </div>
+                </div>
+                <button id="show-chart-btn" onclick="toggleChart()" class="hidden bg-white hover:bg-gray-50 text-tjblue font-bold px-4 py-2.5 rounded-lg shadow-xl border border-gray-200 transition">
+                    <i class="fa-solid fa-chart-pie mr-2 text-tjorange"></i>Tampilkan Grafik
+                </button>
+            </div>
+        </main>
     </div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -113,10 +124,25 @@
 
         Chart.register(ChartDataLabels);
 
-        map = L.map('map', { maxZoom: 18, zoomControl: false }).setView([-6.2088, 106.8456], 12);
-        L.control.zoom({ position: 'bottomright' }).addTo(map);
-        L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', { attribution: '&copy; CARTO' }).addTo(map);
+        // KONFIGURASI BASEMAPS
+        const cartoLight = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', { attribution: '&copy; CARTO' });
+        const googleStreets = L.tileLayer('http://mt0.google.com/vt/lyrs=m&hl=en&x={x}&y={y}&z={z}', { attribution: '&copy; Google Maps' });
+        const googleSat = L.tileLayer('http://mt0.google.com/vt/lyrs=s&hl=en&x={x}&y={y}&z={z}', { attribution: '&copy; Google Satellite' });
+        const osmStandard = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap' });
 
+        map = L.map('map', { maxZoom: 18, zoomControl: false, layers: [cartoLight] }).setView([-6.2088, 106.8456], 12);
+        L.control.zoom({ position: 'bottomright' }).addTo(map);
+
+        // Masukkan Opsi Basemap ke Control Leaflet
+        const baseMaps = {
+            "Peta Terang (Default)": cartoLight,
+            "Google Maps (Jalan)": googleStreets,
+            "Google Satellite": googleSat,
+            "OpenStreetMap": osmStandard
+        };
+        L.control.layers(baseMaps, null, { position: 'bottomleft' }).addTo(map);
+
+        // LOGIKA KLASTER
         markerCluster = L.markerClusterGroup({
             chunkedLoading: true, 
             maxClusterRadius: 55,
@@ -146,6 +172,7 @@
         });
         map.addLayer(markerCluster);
 
+        // TARIK DATA
         window.addEventListener('DOMContentLoaded', () => {
             fetch(API_URL)
                 .then(res => res.json())
@@ -154,8 +181,6 @@
                     allData = data;
                     document.getElementById('loading-badge').classList.add('hidden');
                     applyFilters();
-                    
-                    // Trigger map resize event setelah rendering agar tile peta tidak bolong di HP
                     setTimeout(() => { map.invalidateSize(); }, 500);
                 })
                 .catch(err => {
@@ -164,14 +189,34 @@
                 });
         });
 
-        // Event Listener khusus agar peta menyesuaikan saat HP diputar ke mode landscape/portrait
-        window.addEventListener('resize', () => {
-            if(map) map.invalidateSize();
-        });
+        // FUNGSI TOGGLE SIDEBAR & CHART
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            if (sidebar.style.display === 'none') {
+                sidebar.style.display = 'flex';
+            } else {
+                sidebar.style.display = 'none';
+            }
+            // Paksa peta menyesuaikan ulang sisa layarnya
+            setTimeout(() => { map.invalidateSize(); }, 200);
+        }
+
+        function toggleChart() {
+            const panel = document.getElementById('chart-panel-content');
+            const btn = document.getElementById('show-chart-btn');
+            if (panel.classList.contains('hidden')) {
+                panel.classList.remove('hidden');
+                btn.classList.add('hidden');
+            } else {
+                panel.classList.add('hidden');
+                btn.classList.remove('hidden');
+            }
+        }
+
+        window.addEventListener('resize', () => { if(map) map.invalidateSize(); });
 
         function getSymbology(text, mode) {
             text = (text || "").toLowerCase();
-            
             if (mode === 'E') {
                 if (text.includes("tidak ada")) return { id: "e1", label: "Tidak Ada Bus Stop", bg: "bg-red-500", text: "text-white", hex: "#ef4444", icon: "fa-exclamation" };
                 if (text.includes("terhalang")) return { id: "e2", label: "Ada, Namun Terhalang", bg: "bg-orange-500", text: "text-white", hex: "#f97316", icon: "fa-ban" };
@@ -189,7 +234,6 @@
                 if (text.includes("bocor") || text.includes("pinggir")) return { id: "g3", label: "Perlu Halte & Petugas", bg: "bg-yellow-400", text: "text-gray-900", hex: "#facc15", icon: "fa-id-card" }; 
                 if (text.includes("aman") || text.includes("mudah")) return { id: "g4", label: "Aman & Ramah Pelanggan", bg: "bg-green-500", text: "text-white", hex: "#22c55e", icon: "fa-check" };
             }
-            
             return { id: "unk", label: "Data Tidak Spesifik", bg: "bg-gray-300", text: "text-gray-700", hex: "#d1d5db", icon: "fa-circle-question" };
         }
 
@@ -199,11 +243,7 @@
         }
 
         function toggleLegendFilter(id) {
-            if (activeLegendFilter === id) {
-                activeLegendFilter = null; 
-            } else {
-                activeLegendFilter = id; 
-            }
+            activeLegendFilter = (activeLegendFilter === id) ? null : id; 
             applyFilters();
         }
 
@@ -238,11 +278,9 @@
 
                     if (!activeLegendFilter || activeLegendFilter === sym.id) {
                         countMapRendered++;
-
                         const htmlIcon = `<div class="w-7 h-7 md:w-8 md:h-8 rounded-full ${sym.bg} ${sym.text} border-2 border-white flex items-center justify-center shadow-lg"><i class="fa-solid ${sym.icon} text-[11px] md:text-[13px]"></i></div>`;
                         const markerIcon = L.divIcon({ html: htmlIcon, className: '', iconSize: L.point(32,32), iconAnchor: [16,16] });
                         const marker = L.marker([item.lat, item.lng], { icon: markerIcon, customBg: sym.bg, customText: sym.text });
-                        
                         marker.bindPopup(() => createPopupContent(item, sym), { className: 'custom-popup' });
                         markerCluster.addLayer(marker);
                     }
@@ -250,7 +288,6 @@
             });
 
             document.getElementById('score-total').innerText = activeLegendFilter ? `${countMapRendered} / ${countTotalSearched}` : countTotalSearched;
-            
             updateScorecardAndChart(Object.values(summaryStats).sort((a,b) => b.count - a.count), countTotalSearched); 
         }
 
@@ -289,45 +326,28 @@
                 chartColors.push(stat.hex);
             });
 
-            // Eksekusi Chart HANYA JIKA elemen Canvas terlihat di layar (Laptop/Tablet)
-            const canvasEl = document.getElementById('donutChart');
-            if(window.getComputedStyle(canvasEl.parentElement.parentElement).display !== 'none') {
-                const ctx = canvasEl.getContext('2d');
+            // Eksekusi Chart HANYA jika layarnya besar (MD/Laptop)
+            const canvasWrapper = document.getElementById('chart-panel-content').parentElement;
+            if(window.getComputedStyle(canvasWrapper).display !== 'none') {
+                const ctx = document.getElementById('donutChart').getContext('2d');
                 if (currentChart) currentChart.destroy(); 
 
                 currentChart = new Chart(ctx, {
                     type: 'doughnut',
                     data: {
                         labels: chartLabels,
-                        datasets: [{
-                            data: chartData,
-                            backgroundColor: chartColors,
-                            borderWidth: 2,
-                            borderColor: '#ffffff',
-                            hoverOffset: 6
-                        }]
+                        datasets: [{ data: chartData, backgroundColor: chartColors, borderWidth: 2, borderColor: '#ffffff', hoverOffset: 6 }]
                     },
                     options: {
                         responsive: true,
                         maintainAspectRatio: false,
-                        layout: { padding: { bottom: 20 } },
+                        layout: { padding: { bottom: 15 } },
                         cutout: '55%',
                         plugins: {
-                            legend: {
-                                display: true,
-                                position: 'bottom',
-                                labels: { boxWidth: 12, padding: 10, font: { size: 11, family: 'PT Sans', weight: 'bold' }, color: '#4b5563' }
-                            },
-                            tooltip: {
-                                bodyFont: { family: 'PT Sans' },
-                                titleFont: { family: 'PT Sans' },
-                                callbacks: { label: function(context) { return ` ${context.label}: ${context.raw} Titik`; } }
-                            },
+                            legend: { display: true, position: 'bottom', labels: { boxWidth: 12, padding: 10, font: { size: 11, family: 'PT Sans', weight: 'bold' }, color: '#4b5563' } },
+                            tooltip: { bodyFont: { family: 'PT Sans' }, titleFont: { family: 'PT Sans' }, callbacks: { label: function(context) { return ` ${context.label}: ${context.raw} Titik`; } } },
                             datalabels: {
-                                color: '#ffffff',
-                                font: { weight: 'bold', size: 12, family: 'PT Sans' },
-                                textStrokeColor: 'rgba(0,0,0,0.4)',
-                                textStrokeWidth: 3,
+                                color: '#ffffff', font: { weight: 'bold', size: 12, family: 'PT Sans' }, textStrokeColor: 'rgba(0,0,0,0.4)', textStrokeWidth: 3,
                                 formatter: (value, ctx) => {
                                     let sum = 0;
                                     let dataArr = ctx.chart.data.datasets[0].data;
@@ -344,11 +364,11 @@
 
         function createPopupContent(item, sym) {
             let fixLink = item.dokumentasi;
-            let btnDokumentasi = `<div class="text-[10px] text-gray-400 italic text-center p-2.5 bg-gray-50 border-t border-gray-100 rounded-b-xl">Dokumentasi foto tidak tersedia.</div>`;
+            let btnDokumentasi = `<div class="text-[11px] text-gray-400 italic text-center p-3 bg-gray-50 border-t border-gray-100 rounded-b-xl">Dokumentasi foto tidak tersedia.</div>`;
             
             if(fixLink && fixLink.length > 5) {
                 if(!fixLink.startsWith('http://') && !fixLink.startsWith('https://')) fixLink = 'https://' + fixLink; 
-                btnDokumentasi = `<a href="${fixLink}" target="_blank" rel="noopener noreferrer" class="block text-center bg-tjblue hover:bg-blue-800 text-white font-bold py-2.5 rounded-b-xl text-[11px] uppercase tracking-widest transition"><i class="fa-solid fa-camera mr-1.5"></i> Cek Foto Lapangan</a>`;
+                btnDokumentasi = `<a href="${fixLink}" target="_blank" rel="noopener noreferrer" class="block text-center bg-tjblue hover:bg-blue-800 text-white font-bold py-3 rounded-b-xl text-xs uppercase tracking-widest transition"><i class="fa-solid fa-camera mr-1.5"></i> Cek Foto Lapangan</a>`;
             }
 
             return `
