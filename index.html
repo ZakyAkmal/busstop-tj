@@ -29,7 +29,7 @@
         .legend-item { transition: all 0.2s ease-in-out; }
         .legend-item:hover { transform: translateX(5px); }
         
-        .leaflet-control-layers { border-radius: 8px !important; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1) !important; border: 2px solid #e2e8f0 !important; font-family: 'PT Sans', sans-serif; font-weight: bold; }
+        .leaflet-control-layers { border-radius: 8px !important; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1) !important; border: 2px solid #e2e8f0 !important; font-family: 'PT Sans', sans-serif; font-weight: bold; background-color: rgba(255,255,255,0.95) !important; backdrop-filter: blur(4px); }
     </style>
 </head>
 <body class="flex flex-col h-screen overflow-hidden">
@@ -116,7 +116,6 @@
     <script src="https://unpkg.com/leaflet.markercluster@1.4.1/dist/leaflet.markercluster.js"></script>
 
     <script>
-        // URL API GOOGLE APPS SCRIPT YANG BARU DITANAMKAN
         const API_URL = "https://script.google.com/macros/s/AKfycbwcE-rC1hubk0ZuYgR9ZjBIKPv7R5lG35YEEl1ajF9Md5-TbXslqgV9SoYMTLCaU5TJ/exec";
 
         let map, markerCluster, allData = [];
@@ -125,16 +124,35 @@
 
         Chart.register(ChartDataLabels);
 
-        const cartoLight = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', { attribution: '&copy; CARTO' });
-        const googleStreets = L.tileLayer('http://mt0.google.com/vt/lyrs=m&hl=en&x={x}&y={y}&z={z}', { attribution: '&copy; Google Maps' });
-        const googleSat = L.tileLayer('http://mt0.google.com/vt/lyrs=s&hl=en&x={x}&y={y}&z={z}', { attribution: '&copy; Google Satellite' });
-        const osmStandard = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap' });
+        // PENAMBAHAN BASEMAPS (Termasuk Dark Mode)
+        const cartoLight = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', { attribution: '© CARTO' });
+        const cartoDark = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { attribution: '© CARTO' });
+        const googleStreets = L.tileLayer('http://mt0.google.com/vt/lyrs=m&hl=en&x={x}&y={y}&z={z}', { attribution: '© Google Maps' });
+        const googleSat = L.tileLayer('http://mt0.google.com/vt/lyrs=s&hl=en&x={x}&y={y}&z={z}', { attribution: '© Google Satellite' });
+        const osmStandard = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap' });
 
-        map = L.map('map', { maxZoom: 18, zoomControl: false, layers: [cartoLight] }).setView([-6.2088, 106.8456], 12);
+        // BATAS AREA (BOUNDING BOX) JABODETABEK UNTUK MENGHEMAT MEMORI
+        const jabodetabekBounds = L.latLngBounds(
+            L.latLng(-6.8, 106.5), // Sudut Barat Daya (South West)
+            L.latLng(-5.9, 107.2)  // Sudut Timur Laut (North East)
+        );
+
+        // INISIALISASI PETA DENGAN MAX BOUNDS DAN MIN ZOOM
+        map = L.map('map', { 
+            maxZoom: 18, 
+            minZoom: 10,                 // Batas Zoom Out Maksimal
+            maxBounds: jabodetabekBounds, // Mengunci Peta di Area Jabodetabek
+            maxBoundsViscosity: 1.0,      // Efek "membal" jika ditarik keluar area
+            zoomControl: false, 
+            layers: [cartoLight] 
+        }).setView([-6.2088, 106.8456], 12);
+        
         L.control.zoom({ position: 'bottomright' }).addTo(map);
 
+        // DAFTAR PILIHAN BASEMAP
         const baseMaps = {
             "Carto Light (Default)": cartoLight,
+            "Carto Dark (Peta Gelap)": cartoDark,
             "Google Maps": googleStreets,
             "Google Satellite": googleSat,
             "OpenStreetMap": osmStandard
@@ -384,7 +402,6 @@
             }
         }
 
-        // FUNGSI POPUP DENGAN TOMBOL DIRECTIONS BARU
         function createPopupContent(item, sym) {
             let fixLink = item.dokumentasi;
             let btnDokumentasi = `<div class="flex-1 flex justify-center items-center text-[10px] text-gray-400 italic bg-gray-50 border-t border-gray-100 p-2">Foto tak tersedia</div>`;
@@ -394,7 +411,6 @@
                 btnDokumentasi = `<a href="${fixLink}" target="_blank" rel="noopener noreferrer" class="flex-1 flex justify-center items-center bg-tjblue hover:bg-blue-800 text-white font-bold py-2.5 md:py-3 text-[10px] md:text-[11px] uppercase tracking-widest transition"><i class="fa-solid fa-camera mr-1.5"></i> Dokumentasi</a>`;
             }
 
-            // Google Maps URL untuk Directions berdasarkan koordinat (lat, lng)
             const mapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${item.lat},${item.lng}`;
             const btnDirections = `<a href="${mapsUrl}" target="_blank" rel="noopener noreferrer" class="flex-1 flex justify-center items-center bg-tjorange hover:bg-yellow-500 text-tjblue font-bold py-2.5 md:py-3 text-[10px] md:text-[11px] uppercase tracking-widest transition border-r border-white/20"><i class="fa-solid fa-route mr-1.5"></i> Directions</a>`;
 
@@ -412,15 +428,15 @@
                     
                     <div class="px-4 py-3 text-[11px] md:text-[12px] text-gray-600 space-y-2 bg-white">
                         <div class="flex flex-col border-b border-gray-100 pb-1.5">
-                            <span class="font-bold text-gray-400 uppercase tracking-wider">Bus Stop</span>
+                            <span class="font-bold text-gray-400 uppercase tracking-wider">Ketersediaan Bus Stop</span>
                             <span class="font-bold text-gray-800 text-[12px] md:text-[13px]">${item.kondisiE || '-'}</span>
                         </div>
                         <div class="flex flex-col border-b border-gray-100 pb-1.5">
-                            <span class="font-bold text-gray-400 uppercase tracking-wider">Papan Rute</span>
+                            <span class="font-bold text-gray-400 uppercase tracking-wider">Papan Informasi Rute</span>
                             <span class="font-bold text-gray-800 text-[12px] md:text-[13px]">${item.kondisiF || '-'}</span>
                         </div>
                         <div class="flex flex-col">
-                            <span class="font-bold text-gray-400 uppercase tracking-wider">Area Tunggu</span>
+                            <span class="font-bold text-gray-400 uppercase tracking-wider">Kondisi Tempat Tunggu</span>
                             <span class="font-bold text-gray-800 text-[12px] md:text-[13px]">${item.kondisiG || '-'}</span>
                         </div>
                     </div>
