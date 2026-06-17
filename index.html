@@ -46,14 +46,20 @@
         <aside class="w-[26rem] bg-white shadow-2xl z-40 flex flex-col h-full border-r border-gray-200 shrink-0">
             <div class="p-6 flex-1 overflow-y-auto space-y-6">
                 
-                <div>
-                    <label class="block text-xs font-black uppercase tracking-wider text-gray-500 mb-2"><i class="fa-solid fa-magnifying-glass mr-1.5 text-tjblue"></i> Pencarian</label>
-                    <input type="text" id="search-input" oninput="applyFilters()" placeholder="Ketik Nama Halte / Rute..." class="w-full text-sm px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg focus:bg-white focus:border-tjblue focus:ring-2 focus:ring-blue-100 outline-none transition shadow-inner">
+                <div class="space-y-3">
+                    <div>
+                        <label class="block text-xs font-black uppercase tracking-wider text-gray-500 mb-1.5"><i class="fa-solid fa-magnifying-glass mr-1.5 text-tjblue"></i> Cari Nama Halte</label>
+                        <input type="text" id="search-input" oninput="applyFilters()" placeholder="Ketik Nama Halte..." class="w-full text-sm px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg focus:bg-white focus:border-tjblue focus:ring-2 focus:ring-blue-100 outline-none transition shadow-inner">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-black uppercase tracking-wider text-gray-500 mb-1.5"><i class="fa-solid fa-route mr-1.5 text-tjblue"></i> Cari Berdasarkan Rute</label>
+                        <input type="text" id="route-input" oninput="applyFilters()" placeholder="Ketik Rute (Contoh: JAK.10 atau 10K)..." class="w-full text-sm px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg focus:bg-white focus:border-tjblue focus:ring-2 focus:ring-blue-100 outline-none transition shadow-inner">
+                    </div>
                 </div>
 
                 <div class="space-y-2">
                     <label class="block text-xs font-black uppercase tracking-wider text-gray-500"><i class="fa-solid fa-layer-group mr-1.5 text-tjblue"></i> Lihat Persebaran Dari:</label>
-                    <select id="view-mode" onchange="applyFilters()" class="w-full text-sm px-4 py-3 border-2 border-gray-200 rounded-lg text-gray-800 font-bold focus:border-tjorange focus:ring-0 outline-none cursor-pointer shadow-sm transition">
+                    <select id="view-mode" onchange="resetLegendAndFilter()" class="w-full text-sm px-4 py-3 border-2 border-gray-200 rounded-lg text-gray-800 font-bold focus:border-tjorange focus:ring-0 outline-none cursor-pointer shadow-sm transition">
                         <option value="E">Ketersediaan Bus Stop</option>
                         <option value="F">Ketersediaan Papan Informasi Rute</option>
                         <option value="G">Kondisi Tempat Tunggu Pelanggan</option>
@@ -63,7 +69,7 @@
                 <div class="pt-2">
                     <div class="flex justify-between items-end mb-3 border-b border-gray-200 pb-2">
                         <h3 class="text-xs font-black text-gray-500 uppercase"><i class="fa-solid fa-list-check mr-1"></i> Keterangan</h3>
-                        <span class="text-[10px] font-bold text-tjblue bg-blue-50 px-2 py-1 rounded">Total: <span id="score-total">0</span> Titik</span>
+                        <span class="text-[10px] font-bold text-tjblue bg-blue-50 px-2 py-1 rounded">Di Peta: <span id="score-total">0</span> Titik</span>
                     </div>
                     <div id="map-legend" class="space-y-2.5">
                         </div>
@@ -89,25 +95,22 @@
     <script src="https://unpkg.com/leaflet.markercluster@1.4.1/dist/leaflet.markercluster.js"></script>
 
     <script>
-        // URL API GOOGLE APPS SCRIPT
         const API_URL = "https://script.google.com/macros/s/AKfycbx6XcRBW4LoiyRdxBLMLggPb6L_X0ek6d1DyfqiCcJTQSLMikw--S0aJPL60lR73mur/exec";
 
         let map, markerCluster, allData = [];
         let currentChart = null;
+        let activeLegendFilter = null; // Menyimpan ID legenda yang sedang diklik
 
-        // Registrasi Plugin Datalabels untuk Chart.js
         Chart.register(ChartDataLabels);
 
-        // 1. Inisialisasi Peta
         map = L.map('map', { maxZoom: 18, zoomControl: false }).setView([-6.2088, 106.8456], 12);
         L.control.zoom({ position: 'bottomright' }).addTo(map);
         L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', { attribution: '&copy; CARTO' }).addTo(map);
 
-        // 2. Logika Klaster (Batas pecah di zoom level 13)
         markerCluster = L.markerClusterGroup({
             chunkedLoading: true, 
             maxClusterRadius: 55,
-            disableClusteringAtZoom: 14, // SEKARANG PECAH LEBIH CEPAT TANPA PERLU ZOOM TERLALU DEKAT
+            disableClusteringAtZoom: 14, 
             iconCreateFunction: function(cluster) {
                 const markers = cluster.getAllChildMarkers();
                 let counts = {};
@@ -133,7 +136,6 @@
         });
         map.addLayer(markerCluster);
 
-        // 3. Tarik Data Utama
         window.addEventListener('DOMContentLoaded', () => {
             fetch(API_URL)
                 .then(res => res.json())
@@ -149,7 +151,6 @@
                 });
         });
 
-        // 4. Simbologi Pintar
         function getSymbology(text, mode) {
             text = (text || "").toLowerCase();
             
@@ -174,23 +175,42 @@
             return { id: "unk", label: "Data Tidak Spesifik", bg: "bg-gray-300", text: "text-gray-700", hex: "#d1d5db", icon: "fa-circle-question" };
         }
 
-        // 5. Eksekusi Filter Data
+        // Fungsi Reset Saat Dropdown Berubah
+        function resetLegendAndFilter() {
+            activeLegendFilter = null;
+            applyFilters();
+        }
+
+        // Fungsi Toggle Klik Legenda
+        function toggleLegendFilter(id) {
+            if (activeLegendFilter === id) {
+                activeLegendFilter = null; // Matikan filter jika diklik ulang
+            } else {
+                activeLegendFilter = id; // Aktifkan filter
+            }
+            applyFilters();
+        }
+
         function applyFilters() {
             const searchVal = document.getElementById('search-input').value.toLowerCase();
+            const routeVal = document.getElementById('route-input').value.toLowerCase(); // Filter Rute
             const viewMode = document.getElementById('view-mode').value;
             
             const modeNames = { 'E': 'Ketersediaan Bus Stop', 'F': 'Papan Informasi Rute', 'G': 'Kondisi Tempat Tunggu' };
             document.getElementById('chart-subtitle').innerText = "Berdasarkan " + modeNames[viewMode];
 
             markerCluster.clearLayers();
-            let countTotal = 0;
+            let countTotalSearched = 0; // Total titik sesuai pencarian box
+            let countMapRendered = 0; // Total titik yang masuk ke map (setelah filter legenda)
             let summaryStats = {};
 
             allData.forEach(item => {
-                const matchS = !searchVal || item.nama.toLowerCase().includes(searchVal) || item.rute.toLowerCase().includes(searchVal);
+                const matchS = !searchVal || item.nama.toLowerCase().includes(searchVal);
+                // Cek teks rute (karena dipisah koma, includes() akan mendeteksi kecocokan sebagian)
+                const matchR = !routeVal || (item.rute && item.rute.toLowerCase().includes(routeVal)); 
 
-                if (matchS) {
-                    countTotal++;
+                if (matchS && matchR) {
+                    countTotalSearched++;
                     
                     let valToEvaluate = item.kondisiE;
                     if(viewMode === 'F') valToEvaluate = item.kondisiF;
@@ -198,24 +218,30 @@
 
                     const sym = getSymbology(valToEvaluate, viewMode);
                     
-                    if(!summaryStats[sym.id]) summaryStats[sym.id] = { label: sym.label, count: 0, hex: sym.hex, bg: sym.bg, text: sym.text, icon: sym.icon };
+                    if(!summaryStats[sym.id]) summaryStats[sym.id] = { id: sym.id, label: sym.label, count: 0, hex: sym.hex, bg: sym.bg, text: sym.text, icon: sym.icon };
                     summaryStats[sym.id].count++;
 
-                    const htmlIcon = `<div class="w-8 h-8 rounded-full ${sym.bg} ${sym.text} border-2 border-white flex items-center justify-center shadow-lg"><i class="fa-solid ${sym.icon} text-[13px]"></i></div>`;
-                    
-                    const markerIcon = L.divIcon({ html: htmlIcon, className: '', iconSize: L.point(32,32), iconAnchor: [16,16] });
-                    const marker = L.marker([item.lat, item.lng], { icon: markerIcon, customBg: sym.bg, customText: sym.text });
-                    
-                    marker.bindPopup(() => createPopupContent(item, sym), { className: 'custom-popup' });
-                    markerCluster.addLayer(marker);
+                    // Validasi apakah indikator ini dipilih di Legenda
+                    if (!activeLegendFilter || activeLegendFilter === sym.id) {
+                        countMapRendered++;
+
+                        const htmlIcon = `<div class="w-8 h-8 rounded-full ${sym.bg} ${sym.text} border-2 border-white flex items-center justify-center shadow-lg"><i class="fa-solid ${sym.icon} text-[13px]"></i></div>`;
+                        const markerIcon = L.divIcon({ html: htmlIcon, className: '', iconSize: L.point(32,32), iconAnchor: [16,16] });
+                        const marker = L.marker([item.lat, item.lng], { icon: markerIcon, customBg: sym.bg, customText: sym.text });
+                        
+                        marker.bindPopup(() => createPopupContent(item, sym), { className: 'custom-popup' });
+                        markerCluster.addLayer(marker);
+                    }
                 }
             });
 
-            document.getElementById('score-total').innerText = countTotal;
-            updateScorecardAndChart(Object.values(summaryStats).sort((a,b) => b.count - a.count), countTotal); 
+            // Tampilkan angka sesuai yang di-render di peta (jika ada filter legenda, angkanya akan menyesuaikan)
+            document.getElementById('score-total').innerText = activeLegendFilter ? `${countMapRendered} / ${countTotalSearched}` : countTotalSearched;
+            
+            // Scorecard & Chart selalu dirender berdasarkan Total Searched agar tidak hilang saat diklik
+            updateScorecardAndChart(Object.values(summaryStats).sort((a,b) => b.count - a.count), countTotalSearched); 
         }
 
-        // 6. Update Sidebar & Chart 
         function updateScorecardAndChart(statsArray, totalCount) {
             const legendDiv = document.getElementById('map-legend');
             legendDiv.innerHTML = '';
@@ -225,130 +251,14 @@
             let chartColors = [];
 
             statsArray.forEach(stat => {
-                // Hitung Persentase
                 const percentage = totalCount > 0 ? ((stat.count / totalCount) * 100).toFixed(1) + '%' : '0%';
-
-                // Sidebar Scorecard dengan Persentase di Bawah
-                legendDiv.innerHTML += `
-                    <div class="legend-item flex items-center justify-between bg-gray-50 hover:bg-gray-100 p-2.5 rounded-lg border border-gray-200 cursor-default">
-                        <div class="flex items-center">
-                            <div class="w-8 h-8 rounded-full ${stat.bg} ${stat.text} flex justify-center items-center mr-3 shadow-sm">
-                                <i class="fa-solid ${stat.icon} text-sm"></i>
-                            </div>
-                            <span class="text-[11px] font-bold text-gray-700 w-44 leading-tight">${stat.label}</span>
-                        </div>
-                        <div class="text-right">
-                            <span class="text-lg font-black ${stat.text === 'text-white' ? stat.bg.replace('bg-', 'text-') : 'text-gray-900'} leading-none">${stat.count}</span>
-                            <span class="block text-[10px] text-gray-400 font-bold mt-0.5">${percentage}</span>
-                        </div>
-                    </div>
-                `;
                 
-                chartLabels.push(stat.label);
-                chartData.push(stat.count);
-                chartColors.push(stat.hex);
-            });
+                // Menentukan class visual jika legenda sedang aktif/tidak aktif
+                const isActive = activeLegendFilter === stat.id;
+                const opacityClass = (activeLegendFilter && !isActive) ? 'opacity-40 grayscale-[30%]' : 'opacity-100 hover:bg-blue-50';
+                const ringClass = isActive ? 'ring-2 ring-tjblue ring-offset-2 bg-blue-50' : 'bg-gray-50';
 
-            // Re-render Donut Chart dengan Persentase dan Legenda
-            const ctx = document.getElementById('donutChart').getContext('2d');
-            if (currentChart) currentChart.destroy(); 
-
-            currentChart = new Chart(ctx, {
-                type: 'doughnut',
-                data: {
-                    labels: chartLabels,
-                    datasets: [{
-                        data: chartData,
-                        backgroundColor: chartColors,
-                        borderWidth: 2,
-                        borderColor: '#ffffff',
-                        hoverOffset: 6
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    layout: { padding: { bottom: 20 } },
-                    cutout: '55%',
-                    plugins: {
-                        legend: {
-                            display: true,
-                            position: 'bottom',
-                            labels: {
-                                boxWidth: 12,
-                                padding: 10,
-                                font: { size: 10, family: 'Inter', weight: 'bold' },
-                                color: '#4b5563'
-                            }
-                        },
-                        tooltip: {
-                            callbacks: { label: function(context) { return ` ${context.label}: ${context.raw} Titik`; } }
-                        },
-                        // Konfigurasi Label Persentase Terapung di atas Donat
-                        datalabels: {
-                            color: '#ffffff',
-                            font: { weight: 'bold', size: 11, family: 'Inter' },
-                            textStrokeColor: 'rgba(0,0,0,0.4)',
-                            textStrokeWidth: 3,
-                            formatter: (value, ctx) => {
-                                let sum = 0;
-                                let dataArr = ctx.chart.data.datasets[0].data;
-                                dataArr.map(data => { sum += data; });
-                                if(value === 0) return '';
-                                return (value * 100 / sum).toFixed(1) + "%";
-                            }
-                        }
-                    }
-                }
-            });
-        }
-
-        // 7. Render Jendela Popup
-        function createPopupContent(item, sym) {
-            let fixLink = item.dokumentasi;
-            let btnDokumentasi = `<div class="text-[10px] text-gray-400 italic text-center p-3 bg-gray-50 border-t border-gray-100 rounded-b-xl">Dokumentasi foto tidak tersedia.</div>`;
-            
-            if(fixLink && fixLink.length > 5) {
-                if(!fixLink.startsWith('http://') && !fixLink.startsWith('https://')) fixLink = 'https://' + fixLink; 
-                btnDokumentasi = `<a href="${fixLink}" target="_blank" rel="noopener noreferrer" class="block text-center bg-tjblue hover:bg-blue-800 text-white font-black py-3 rounded-b-xl text-[11px] uppercase tracking-widest transition"><i class="fa-solid fa-camera mr-1.5"></i> Cek Foto Lapangan</a>`;
-            }
-
-            return `
-                <div class="flex flex-col bg-white rounded-xl">
-                    <div class="${sym.bg} ${sym.text} px-5 py-4 flex items-center justify-between rounded-t-xl">
-                        <div class="pr-3">
-                            <h4 class="font-black text-sm uppercase tracking-wider mb-1.5">${item.nama}</h4>
-                            <span class="inline-block bg-white/20 backdrop-blur-sm text-${sym.text} text-[10px] px-2.5 py-1 rounded shadow-sm border border-white/30"><i class="fa-solid fa-route mr-1.5"></i>RUTE: <strong class="font-black">${item.rute || '-'}</strong></span>
-                        </div>
-                        <div class="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center shrink-0 border border-white/40 shadow-inner">
-                            <i class="fa-solid ${sym.icon} text-xl"></i>
-                        </div>
-                    </div>
-                    
-                    <div class="px-5 py-4 text-[11px] text-gray-600 space-y-3 bg-white">
-                        <div class="flex flex-col border-b border-gray-100 pb-2">
-                            <span class="font-bold text-gray-400 uppercase mb-0.5 tracking-wider">Bus Stop (E)</span>
-                            <span class="font-bold text-gray-800 text-xs">${item.kondisiE || '-'}</span>
-                        </div>
-                        <div class="flex flex-col border-b border-gray-100 pb-2">
-                            <span class="font-bold text-gray-400 uppercase mb-0.5 tracking-wider">Papan Rute (F)</span>
-                            <span class="font-bold text-gray-800 text-xs">${item.kondisiF || '-'}</span>
-                        </div>
-                        <div class="flex flex-col">
-                            <span class="font-bold text-gray-400 uppercase mb-0.5 tracking-wider">Area Tunggu (G)</span>
-                            <span class="font-bold text-gray-800 text-xs">${item.kondisiG || '-'}</span>
-                        </div>
-                    </div>
-                    
-                    <div class="px-5 py-3 bg-yellow-50/50 border-t border-gray-100">
-                        <span class="block text-[10px] font-black text-gray-500 uppercase mb-1.5"><i class="fa-solid fa-comment-dots mr-1"></i> Catatan Surveyor</span>
-                        <p class="text-[11px] text-gray-700 font-medium leading-relaxed">${item.keterangan || '<span class="italic opacity-50">Tidak ada catatan</span>'}</p>
-                    </div>
-                    
-                    ${btnDokumentasi}
-                </div>
-            `;
-        }
-    </script>
-</body>
-</html>
+                legendDiv.innerHTML += `
+                    <div onclick="toggleLegendFilter('${stat.id}')" class="legend-item flex items-center justify-between ${ringClass} ${opacityClass} p-2.5 rounded-lg border border-gray-200 cursor-pointer transition-all duration-200">
+                        <div class="flex items-center">
+                            <div class="w-8 h-8 rounded-full ${stat.bg} ${stat.text
