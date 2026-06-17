@@ -9,17 +9,24 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.css" />
     <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.Default.css" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=PT+Sans:ital,wght@0,400;0,700;1,400;1,700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
     
     <script>
-        tailwind.config = { theme: { extend: { colors: { tjblue: '#002855', tjorange: '#F2A900' } } } }
+        tailwind.config = { theme: { extend: { colors: { tjblue: '#06367c', tjorange: '#F2A900' } } } }
     </script>
     <style>
-        html, body { height: 100%; margin: 0; background-color: #f8fafc; font-family: 'Inter', sans-serif; }
+        html, body { height: 100%; margin: 0; background-color: #f8fafc; font-family: 'PT Sans', sans-serif; }
         #map { height: 100%; width: 100%; z-index: 10; }
+        
+        /* Pengaturan Ukuran Popup Adaptif untuk HP dan Laptop */
         .custom-popup .leaflet-popup-content-wrapper { padding: 0; overflow: hidden; border-radius: 12px; border: none; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04); }
-        .custom-popup .leaflet-popup-content { margin: 0; width: 340px !important; }
+        .custom-popup .leaflet-popup-content { margin: 0; width: 280px !important; }
+        @media (min-width: 768px) {
+            .custom-popup .leaflet-popup-content { width: 340px !important; }
+        }
+
         ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
         .legend-item { transition: all 0.2s ease-in-out; }
@@ -28,78 +35,81 @@
 </head>
 <body class="flex flex-col h-screen overflow-hidden">
 
-    <header class="bg-tjblue text-white shadow-xl z-50 flex justify-between items-center px-6 py-3 shrink-0">
-        <div class="flex items-center space-x-4">
-            <img src="TransJakarta_Logo.svg (1).png" alt="Logo Transjakarta" class="h-12 drop-shadow-md">
-            <div>
-                <h1 class="font-bold text-xl leading-tight tracking-wide">Dashboard Kondisi Bus Stop</h1>
-                <p class="text-xs text-blue-200 font-medium tracking-widest uppercase">Layanan Mikrotrans dan Non-BRT Transjakarta</p>
+    <header class="bg-tjblue text-white shadow-xl z-50 flex justify-between items-center px-3 md:px-6 py-2 md:py-3 shrink-0">
+        <div class="flex items-center space-x-2 md:space-x-4 w-3/4 md:w-auto">
+            <img src="TJ-Putih.png" alt="Logo Transjakarta" class="h-6 md:h-10 drop-shadow-md shrink-0">
+            <div class="min-w-0">
+                <h1 class="font-bold text-sm md:text-xl leading-tight tracking-wide truncate">Dashboard Kondisi Bus Stop</h1>
+                <p class="text-[8px] md:text-xs text-blue-200 font-bold tracking-widest uppercase opacity-90 truncate">Layanan Mikrotrans dan Non-BRT</p>
             </div>
         </div>
-        <div id="loading-badge" class="px-5 py-2 text-xs bg-tjorange text-tjblue font-bold rounded-full animate-pulse shadow-md flex items-center">
-            <i class="fa-solid fa-satellite-dish mr-2 animate-spin"></i> Mensinkronisasi Data Lapangan...
+        <div id="loading-badge" class="px-2 md:px-5 py-1 md:py-2 text-[9px] md:text-xs bg-tjorange text-tjblue font-bold rounded-full animate-pulse shadow-md flex items-center shrink-0">
+            <i class="fa-solid fa-satellite-dish mr-1 md:mr-2 animate-spin"></i> 
+            <span class="hidden md:inline">Mensinkronisasi Data...</span>
+            <span class="inline md:hidden">Sync...</span>
         </div>
     </header>
 
-    <div class="flex flex-1 overflow-hidden relative">
+    <div class="flex flex-col md:flex-row flex-1 overflow-hidden relative">
         
-        <aside class="w-[26rem] bg-white shadow-2xl z-40 flex flex-col h-full border-r border-gray-200 shrink-0">
-            <div class="p-6 flex-1 overflow-y-auto space-y-6">
+        <main class="w-full h-[45vh] md:h-full md:flex-1 relative bg-gray-100 order-1 md:order-2 shrink-0 md:shrink z-10">
+            <div id="map"></div>
+            
+            <div class="hidden md:block absolute top-5 right-5 z-[1000] w-[340px] bg-white/95 backdrop-blur-md rounded-2xl shadow-2xl p-5 border border-gray-100">
+                <h3 class="text-xs font-bold text-tjblue uppercase tracking-wide text-center mb-1">Proporsi Keseluruhan</h3>
+                <p id="chart-subtitle" class="text-[10px] text-gray-400 text-center uppercase tracking-widest mb-4">Berdasarkan Bus Stop</p>
+                <div class="relative w-full min-h-[260px] flex justify-center items-center">
+                    <canvas id="donutChart"></canvas>
+                </div>
+            </div>
+        </main>
+
+        <aside class="w-full md:w-[26rem] h-[55vh] md:h-full bg-white shadow-2xl z-40 flex flex-col border-t md:border-t-0 md:border-r border-gray-200 shrink-0 order-2 md:order-1">
+            <div class="p-4 md:p-6 flex-1 overflow-y-auto space-y-5 md:space-y-6">
                 
                 <div class="space-y-3">
                     <div>
-                        <label class="block text-xs font-black uppercase tracking-wider text-gray-500 mb-1.5"><i class="fa-solid fa-magnifying-glass mr-1.5 text-tjblue"></i> Cari Nama Halte</label>
-                        <input type="text" id="search-input" oninput="applyFilters()" placeholder="Ketik Nama Halte..." class="w-full text-sm px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg focus:bg-white focus:border-tjblue focus:ring-2 focus:ring-blue-100 outline-none transition shadow-inner">
+                        <label class="block text-[11px] md:text-xs font-bold uppercase tracking-wider text-gray-500 mb-1.5"><i class="fa-solid fa-magnifying-glass mr-1.5 text-tjblue"></i> Cari Nama Halte</label>
+                        <input type="text" id="search-input" oninput="applyFilters()" placeholder="Ketik Nama Halte..." class="w-full text-sm px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:bg-white focus:border-tjblue focus:ring-2 focus:ring-blue-100 outline-none transition shadow-inner">
                     </div>
                     <div>
-                        <label class="block text-xs font-black uppercase tracking-wider text-gray-500 mb-1.5"><i class="fa-solid fa-route mr-1.5 text-tjblue"></i> Cari Berdasarkan Rute</label>
-                        <input type="text" id="route-input" oninput="applyFilters()" placeholder="Ketik Rute (Contoh: JAK.10 atau 6K)..." class="w-full text-sm px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg focus:bg-white focus:border-tjblue focus:ring-2 focus:ring-blue-100 outline-none transition shadow-inner">
+                        <label class="block text-[11px] md:text-xs font-bold uppercase tracking-wider text-gray-500 mb-1.5"><i class="fa-solid fa-route mr-1.5 text-tjblue"></i> Cari Berdasarkan Rute</label>
+                        <input type="text" id="route-input" oninput="applyFilters()" placeholder="Ketik Rute (Contoh: JAK.10 atau 10K)..." class="w-full text-sm px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:bg-white focus:border-tjblue focus:ring-2 focus:ring-blue-100 outline-none transition shadow-inner">
                     </div>
                 </div>
 
                 <div class="space-y-2">
-                    <label class="block text-xs font-black uppercase tracking-wider text-gray-500"><i class="fa-solid fa-layer-group mr-1.5 text-tjblue"></i> Lihat Persebaran Dari:</label>
-                    <select id="view-mode" onchange="resetLegendAndFilter()" class="w-full text-sm px-4 py-3 border-2 border-gray-200 rounded-lg text-gray-800 font-bold focus:border-tjorange focus:ring-0 outline-none cursor-pointer shadow-sm transition">
+                    <label class="block text-[11px] md:text-xs font-bold uppercase tracking-wider text-gray-500"><i class="fa-solid fa-layer-group mr-1.5 text-tjblue"></i> Lihat Persebaran Dari:</label>
+                    <select id="view-mode" onchange="resetLegendAndFilter()" class="w-full text-sm px-4 py-2.5 border-2 border-gray-200 rounded-lg text-gray-800 font-bold focus:border-tjorange focus:ring-0 outline-none cursor-pointer shadow-sm transition">
                         <option value="E">Ketersediaan Bus Stop</option>
                         <option value="F">Ketersediaan Papan Informasi Rute</option>
                         <option value="G">Kondisi Tempat Tunggu Pelanggan</option>
                     </select>
                 </div>
 
-                <div class="pt-2">
+                <div class="pt-1 md:pt-2">
                     <div class="flex justify-between items-end mb-3 border-b border-gray-200 pb-2">
-                        <h3 class="text-xs font-black text-gray-500 uppercase"><i class="fa-solid fa-list-check mr-1"></i> Keterangan</h3>
-                        <span class="text-[10px] font-bold text-tjblue bg-blue-50 px-2 py-1 rounded">Di Peta: <span id="score-total">0</span> Titik</span>
+                        <h3 class="text-[11px] md:text-xs font-bold text-gray-500 uppercase"><i class="fa-solid fa-list-check mr-1"></i> Keterangan</h3>
+                        <span class="text-[10px] md:text-[11px] font-bold text-tjblue bg-blue-50 px-2.5 py-1 rounded">Di Peta: <span id="score-total">0</span> Titik</span>
                     </div>
-                    <div id="map-legend" class="space-y-2.5">
+                    <div id="map-legend" class="space-y-2 md:space-y-2.5">
                         </div>
                 </div>
 
             </div>
         </aside>
 
-        <main class="flex-1 relative bg-gray-100">
-            <div id="map"></div>
-            
-            <div class="absolute top-5 right-5 z-[1000] w-[340px] bg-white/95 backdrop-blur-md rounded-2xl shadow-2xl p-5 border border-gray-100">
-                <h3 class="text-xs font-black text-tjblue uppercase tracking-wide text-center mb-1">Proporsi Keseluruhan</h3>
-                <p id="chart-subtitle" class="text-[9px] text-gray-400 text-center uppercase tracking-widest mb-4">Berdasarkan Bus Stop</p>
-                <div class="relative w-full min-h-[260px] flex justify-center items-center">
-                    <canvas id="donutChart"></canvas>
-                </div>
-            </div>
-        </main>
     </div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://unpkg.com/leaflet.markercluster@1.4.1/dist/leaflet.markercluster.js"></script>
 
     <script>
-        const API_URL = "https://script.google.com/macros/s/AKfycbwcE-rC1hubk0ZuYgR9ZjBIKPv7R5lG35YEEl1ajF9Md5-TbXslqgV9SoYMTLCaU5TJ/exec";
+        const API_URL = "https://script.google.com/macros/s/AKfycbx6XcRBW4LoiyRdxBLMLggPb6L_X0ek6d1DyfqiCcJTQSLMikw--S0aJPL60lR73mur/exec";
 
         let map, markerCluster, allData = [];
         let currentChart = null;
-        let activeLegendFilter = null; // Menyimpan ID legenda yang sedang diklik
+        let activeLegendFilter = null; 
 
         Chart.register(ChartDataLabels);
 
@@ -128,7 +138,7 @@
                 const [domBg, domText] = domStyle.split('|');
 
                 return L.divIcon({ 
-                    html: `<div class="${domBg} ${domText} font-black rounded-full w-12 h-12 flex items-center justify-center border-[3px] border-white shadow-2xl text-base ring-4 ring-black/10 transition-transform hover:scale-110">${cluster.getChildCount()}</div>`, 
+                    html: `<div class="${domBg} ${domText} font-bold rounded-full w-10 h-10 md:w-12 md:h-12 flex items-center justify-center border-[3px] border-white shadow-2xl text-sm md:text-base ring-4 ring-black/10 transition-transform hover:scale-110">${cluster.getChildCount()}</div>`, 
                     className: '', 
                     iconSize: L.point(48, 48) 
                 });
@@ -144,11 +154,19 @@
                     allData = data;
                     document.getElementById('loading-badge').classList.add('hidden');
                     applyFilters();
+                    
+                    // Trigger map resize event setelah rendering agar tile peta tidak bolong di HP
+                    setTimeout(() => { map.invalidateSize(); }, 500);
                 })
                 .catch(err => {
                     alert("Koneksi gagal. Pastikan URL Apps Script sudah benar.");
                     document.getElementById('loading-badge').classList.add('hidden');
                 });
+        });
+
+        // Event Listener khusus agar peta menyesuaikan saat HP diputar ke mode landscape/portrait
+        window.addEventListener('resize', () => {
+            if(map) map.invalidateSize();
         });
 
         function getSymbology(text, mode) {
@@ -175,38 +193,35 @@
             return { id: "unk", label: "Data Tidak Spesifik", bg: "bg-gray-300", text: "text-gray-700", hex: "#d1d5db", icon: "fa-circle-question" };
         }
 
-        // Fungsi Reset Saat Dropdown Berubah
         function resetLegendAndFilter() {
             activeLegendFilter = null;
             applyFilters();
         }
 
-        // Fungsi Toggle Klik Legenda
         function toggleLegendFilter(id) {
             if (activeLegendFilter === id) {
-                activeLegendFilter = null; // Matikan filter jika diklik ulang
+                activeLegendFilter = null; 
             } else {
-                activeLegendFilter = id; // Aktifkan filter
+                activeLegendFilter = id; 
             }
             applyFilters();
         }
 
         function applyFilters() {
             const searchVal = document.getElementById('search-input').value.toLowerCase();
-            const routeVal = document.getElementById('route-input').value.toLowerCase(); // Filter Rute
+            const routeVal = document.getElementById('route-input').value.toLowerCase(); 
             const viewMode = document.getElementById('view-mode').value;
             
             const modeNames = { 'E': 'Ketersediaan Bus Stop', 'F': 'Papan Informasi Rute', 'G': 'Kondisi Tempat Tunggu' };
             document.getElementById('chart-subtitle').innerText = "Berdasarkan " + modeNames[viewMode];
 
             markerCluster.clearLayers();
-            let countTotalSearched = 0; // Total titik sesuai pencarian box
-            let countMapRendered = 0; // Total titik yang masuk ke map (setelah filter legenda)
+            let countTotalSearched = 0; 
+            let countMapRendered = 0; 
             let summaryStats = {};
 
             allData.forEach(item => {
                 const matchS = !searchVal || item.nama.toLowerCase().includes(searchVal);
-                // Cek teks rute (karena dipisah koma, includes() akan mendeteksi kecocokan sebagian)
                 const matchR = !routeVal || (item.rute && item.rute.toLowerCase().includes(routeVal)); 
 
                 if (matchS && matchR) {
@@ -221,11 +236,10 @@
                     if(!summaryStats[sym.id]) summaryStats[sym.id] = { id: sym.id, label: sym.label, count: 0, hex: sym.hex, bg: sym.bg, text: sym.text, icon: sym.icon };
                     summaryStats[sym.id].count++;
 
-                    // Validasi apakah indikator ini dipilih di Legenda
                     if (!activeLegendFilter || activeLegendFilter === sym.id) {
                         countMapRendered++;
 
-                        const htmlIcon = `<div class="w-8 h-8 rounded-full ${sym.bg} ${sym.text} border-2 border-white flex items-center justify-center shadow-lg"><i class="fa-solid ${sym.icon} text-[13px]"></i></div>`;
+                        const htmlIcon = `<div class="w-7 h-7 md:w-8 md:h-8 rounded-full ${sym.bg} ${sym.text} border-2 border-white flex items-center justify-center shadow-lg"><i class="fa-solid ${sym.icon} text-[11px] md:text-[13px]"></i></div>`;
                         const markerIcon = L.divIcon({ html: htmlIcon, className: '', iconSize: L.point(32,32), iconAnchor: [16,16] });
                         const marker = L.marker([item.lat, item.lng], { icon: markerIcon, customBg: sym.bg, customText: sym.text });
                         
@@ -235,10 +249,8 @@
                 }
             });
 
-            // Tampilkan angka sesuai yang di-render di peta (jika ada filter legenda, angkanya akan menyesuaikan)
             document.getElementById('score-total').innerText = activeLegendFilter ? `${countMapRendered} / ${countTotalSearched}` : countTotalSearched;
             
-            // Scorecard & Chart selalu dirender berdasarkan Total Searched agar tidak hilang saat diklik
             updateScorecardAndChart(Object.values(summaryStats).sort((a,b) => b.count - a.count), countTotalSearched); 
         }
 
@@ -253,22 +265,21 @@
             statsArray.forEach(stat => {
                 const percentage = totalCount > 0 ? ((stat.count / totalCount) * 100).toFixed(1) + '%' : '0%';
                 
-                // Menentukan class visual jika legenda sedang aktif/tidak aktif
                 const isActive = activeLegendFilter === stat.id;
                 const opacityClass = (activeLegendFilter && !isActive) ? 'opacity-40 grayscale-[30%]' : 'opacity-100 hover:bg-blue-50';
                 const ringClass = isActive ? 'ring-2 ring-tjblue ring-offset-2 bg-blue-50' : 'bg-gray-50';
 
                 legendDiv.innerHTML += `
-                    <div onclick="toggleLegendFilter('${stat.id}')" class="legend-item flex items-center justify-between ${ringClass} ${opacityClass} p-2.5 rounded-lg border border-gray-200 cursor-pointer transition-all duration-200">
+                    <div onclick="toggleLegendFilter('${stat.id}')" class="legend-item flex items-center justify-between ${ringClass} ${opacityClass} p-2 md:p-2.5 rounded-lg border border-gray-200 cursor-pointer transition-all duration-200">
                         <div class="flex items-center">
-                            <div class="w-8 h-8 rounded-full ${stat.bg} ${stat.text} flex justify-center items-center mr-3 shadow-sm">
-                                <i class="fa-solid ${stat.icon} text-sm"></i>
+                            <div class="w-7 h-7 md:w-8 md:h-8 rounded-full ${stat.bg} ${stat.text} flex justify-center items-center mr-2 md:mr-3 shadow-sm shrink-0">
+                                <i class="fa-solid ${stat.icon} text-xs md:text-sm"></i>
                             </div>
-                            <span class="text-[11px] font-bold text-gray-700 w-44 leading-tight pointer-events-none">${stat.label}</span>
+                            <span class="text-[10px] md:text-[11px] font-bold text-gray-700 w-32 md:w-44 leading-tight pointer-events-none">${stat.label}</span>
                         </div>
-                        <div class="text-right pointer-events-none">
-                            <span class="text-lg font-black ${stat.text === 'text-white' ? stat.bg.replace('bg-', 'text-') : 'text-gray-900'} leading-none">${stat.count}</span>
-                            <span class="block text-[10px] text-gray-400 font-bold mt-0.5">${percentage}</span>
+                        <div class="text-right pointer-events-none shrink-0">
+                            <span class="text-base md:text-lg font-bold ${stat.text === 'text-white' ? stat.bg.replace('bg-', 'text-') : 'text-gray-900'} leading-none">${stat.count}</span>
+                            <span class="block text-[9px] md:text-[10px] text-gray-400 font-bold mt-0.5">${percentage}</span>
                         </div>
                     </div>
                 `;
@@ -278,97 +289,98 @@
                 chartColors.push(stat.hex);
             });
 
-            const ctx = document.getElementById('donutChart').getContext('2d');
-            if (currentChart) currentChart.destroy(); 
+            // Eksekusi Chart HANYA JIKA elemen Canvas terlihat di layar (Laptop/Tablet)
+            const canvasEl = document.getElementById('donutChart');
+            if(window.getComputedStyle(canvasEl.parentElement.parentElement).display !== 'none') {
+                const ctx = canvasEl.getContext('2d');
+                if (currentChart) currentChart.destroy(); 
 
-            currentChart = new Chart(ctx, {
-                type: 'doughnut',
-                data: {
-                    labels: chartLabels,
-                    datasets: [{
-                        data: chartData,
-                        backgroundColor: chartColors,
-                        borderWidth: 2,
-                        borderColor: '#ffffff',
-                        hoverOffset: 6
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    layout: { padding: { bottom: 20 } },
-                    cutout: '55%',
-                    plugins: {
-                        legend: {
-                            display: true,
-                            position: 'bottom',
-                            labels: {
-                                boxWidth: 12,
-                                padding: 10,
-                                font: { size: 10, family: 'Inter', weight: 'bold' },
-                                color: '#4b5563'
-                            }
-                        },
-                        tooltip: {
-                            callbacks: { label: function(context) { return ` ${context.label}: ${context.raw} Titik`; } }
-                        },
-                        datalabels: {
-                            color: '#ffffff',
-                            font: { weight: 'bold', size: 11, family: 'Inter' },
-                            textStrokeColor: 'rgba(0,0,0,0.4)',
-                            textStrokeWidth: 3,
-                            formatter: (value, ctx) => {
-                                let sum = 0;
-                                let dataArr = ctx.chart.data.datasets[0].data;
-                                dataArr.map(data => { sum += data; });
-                                if(value === 0) return '';
-                                return (value * 100 / sum).toFixed(1) + "%";
+                currentChart = new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: chartLabels,
+                        datasets: [{
+                            data: chartData,
+                            backgroundColor: chartColors,
+                            borderWidth: 2,
+                            borderColor: '#ffffff',
+                            hoverOffset: 6
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        layout: { padding: { bottom: 20 } },
+                        cutout: '55%',
+                        plugins: {
+                            legend: {
+                                display: true,
+                                position: 'bottom',
+                                labels: { boxWidth: 12, padding: 10, font: { size: 11, family: 'PT Sans', weight: 'bold' }, color: '#4b5563' }
+                            },
+                            tooltip: {
+                                bodyFont: { family: 'PT Sans' },
+                                titleFont: { family: 'PT Sans' },
+                                callbacks: { label: function(context) { return ` ${context.label}: ${context.raw} Titik`; } }
+                            },
+                            datalabels: {
+                                color: '#ffffff',
+                                font: { weight: 'bold', size: 12, family: 'PT Sans' },
+                                textStrokeColor: 'rgba(0,0,0,0.4)',
+                                textStrokeWidth: 3,
+                                formatter: (value, ctx) => {
+                                    let sum = 0;
+                                    let dataArr = ctx.chart.data.datasets[0].data;
+                                    dataArr.map(data => { sum += data; });
+                                    if(value === 0) return '';
+                                    return (value * 100 / sum).toFixed(1) + "%";
+                                }
                             }
                         }
                     }
-                }
-            });
+                });
+            }
         }
 
         function createPopupContent(item, sym) {
             let fixLink = item.dokumentasi;
-            let btnDokumentasi = `<div class="text-[10px] text-gray-400 italic text-center p-3 bg-gray-50 border-t border-gray-100 rounded-b-xl">Dokumentasi foto tidak tersedia.</div>`;
+            let btnDokumentasi = `<div class="text-[10px] text-gray-400 italic text-center p-2.5 bg-gray-50 border-t border-gray-100 rounded-b-xl">Dokumentasi foto tidak tersedia.</div>`;
             
             if(fixLink && fixLink.length > 5) {
                 if(!fixLink.startsWith('http://') && !fixLink.startsWith('https://')) fixLink = 'https://' + fixLink; 
-                btnDokumentasi = `<a href="${fixLink}" target="_blank" rel="noopener noreferrer" class="block text-center bg-tjblue hover:bg-blue-800 text-white font-black py-3 rounded-b-xl text-[11px] uppercase tracking-widest transition"><i class="fa-solid fa-camera mr-1.5"></i> Cek Foto Lapangan</a>`;
+                btnDokumentasi = `<a href="${fixLink}" target="_blank" rel="noopener noreferrer" class="block text-center bg-tjblue hover:bg-blue-800 text-white font-bold py-2.5 rounded-b-xl text-[11px] uppercase tracking-widest transition"><i class="fa-solid fa-camera mr-1.5"></i> Cek Foto Lapangan</a>`;
             }
 
             return `
-                <div class="flex flex-col bg-white rounded-xl">
-                    <div class="${sym.bg} ${sym.text} px-5 py-4 flex items-center justify-between rounded-t-xl">
-                        <div class="pr-3">
-                            <h4 class="font-black text-sm uppercase tracking-wider mb-1.5">${item.nama}</h4>
-                            <span class="inline-block bg-white/20 backdrop-blur-sm text-${sym.text} text-[10px] px-2.5 py-1 rounded shadow-sm border border-white/30"><i class="fa-solid fa-route mr-1.5"></i>RUTE: <strong class="font-black">${item.rute || '-'}</strong></span>
+                <div class="flex flex-col bg-white rounded-xl font-['PT_Sans']">
+                    <div class="${sym.bg} ${sym.text} px-4 py-3 flex items-center justify-between rounded-t-xl">
+                        <div class="pr-2">
+                            <h4 class="font-bold text-[13px] md:text-[15px] uppercase tracking-wider mb-1">${item.nama}</h4>
+                            <span class="inline-block bg-white/20 backdrop-blur-sm text-${sym.text} text-[9px] md:text-[11px] px-2 py-0.5 rounded shadow-sm border border-white/30"><i class="fa-solid fa-route mr-1.5"></i>RUTE: <strong class="font-bold">${item.rute || '-'}</strong></span>
                         </div>
-                        <div class="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center shrink-0 border border-white/40 shadow-inner">
-                            <i class="fa-solid ${sym.icon} text-xl"></i>
+                        <div class="w-8 h-8 md:w-10 md:h-10 rounded-full bg-white/20 flex items-center justify-center shrink-0 border border-white/40 shadow-inner">
+                            <i class="fa-solid ${sym.icon} text-lg md:text-xl"></i>
                         </div>
                     </div>
                     
-                    <div class="px-5 py-4 text-[11px] text-gray-600 space-y-3 bg-white">
-                        <div class="flex flex-col border-b border-gray-100 pb-2">
-                            <span class="font-bold text-gray-400 uppercase mb-0.5 tracking-wider">Bus Stop (E)</span>
-                            <span class="font-bold text-gray-800 text-xs">${item.kondisiE || '-'}</span>
+                    <div class="px-4 py-3 text-[11px] md:text-[12px] text-gray-600 space-y-2 bg-white">
+                        <div class="flex flex-col border-b border-gray-100 pb-1.5">
+                            <span class="font-bold text-gray-400 uppercase tracking-wider">Bus Stop (E)</span>
+                            <span class="font-bold text-gray-800 text-[12px] md:text-[13px]">${item.kondisiE || '-'}</span>
                         </div>
-                        <div class="flex flex-col border-b border-gray-100 pb-2">
-                            <span class="font-bold text-gray-400 uppercase mb-0.5 tracking-wider">Papan Rute (F)</span>
-                            <span class="font-bold text-gray-800 text-xs">${item.kondisiF || '-'}</span>
+                        <div class="flex flex-col border-b border-gray-100 pb-1.5">
+                            <span class="font-bold text-gray-400 uppercase tracking-wider">Papan Rute (F)</span>
+                            <span class="font-bold text-gray-800 text-[12px] md:text-[13px]">${item.kondisiF || '-'}</span>
                         </div>
                         <div class="flex flex-col">
-                            <span class="font-bold text-gray-400 uppercase mb-0.5 tracking-wider">Area Tunggu (G)</span>
-                            <span class="font-bold text-gray-800 text-xs">${item.kondisiG || '-'}</span>
+                            <span class="font-bold text-gray-400 uppercase tracking-wider">Area Tunggu (G)</span>
+                            <span class="font-bold text-gray-800 text-[12px] md:text-[13px]">${item.kondisiG || '-'}</span>
                         </div>
                     </div>
                     
-                    <div class="px-5 py-3 bg-yellow-50/50 border-t border-gray-100">
-                        <span class="block text-[10px] font-black text-gray-500 uppercase mb-1.5"><i class="fa-solid fa-comment-dots mr-1"></i> Catatan Surveyor</span>
-                        <p class="text-[11px] text-gray-700 font-medium leading-relaxed">${item.keterangan || '<span class="italic opacity-50">Tidak ada catatan</span>'}</p>
+                    <div class="px-4 py-2.5 bg-yellow-50/50 border-t border-gray-100">
+                        <span class="block text-[10px] font-bold text-gray-500 uppercase mb-1"><i class="fa-solid fa-comment-dots mr-1"></i> Catatan Surveyor</span>
+                        <p class="text-[11px] md:text-[12px] text-gray-700 leading-relaxed">${item.keterangan || '<span class="italic opacity-50">Tidak ada catatan</span>'}</p>
                     </div>
                     
                     ${btnDokumentasi}
